@@ -1,0 +1,6 @@
+{
+  "name": "ShopNexa",
+  "description": "Everything You Need, One Place. Premier multi-vendor e-commerce marketplace in Bangladesh featuring Flash Sales, Official Stores, customer reviews, and Cash on Delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

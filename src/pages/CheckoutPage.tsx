@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -10,12 +10,24 @@ import {
   ChevronRight,
   CheckCircle2,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Copy,
+  Check,
+  Sparkles,
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { OrderItem } from '../types';
 import { PaymentGatewayModal } from '../components/common/PaymentGatewayModal';
 import { sanitizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
+import {
+  MFS_CONFIGS,
+  validateMfsTrxId,
+  generateDemoTrxId,
+  isMfsPaymentMethod,
+  type MfsProvider
+} from '../utils/paymentValidation';
 
 export const CheckoutPage: React.FC = () => {
   const {
@@ -29,10 +41,12 @@ export const CheckoutPage: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // If cart is empty, redirect
-  if (cart.length === 0) {
-    navigate('/cart');
-  }
+  // If cart is empty, redirect safely
+  useEffect(() => {
+    if (cart.length === 0) {
+      navigate('/cart', { replace: true });
+    }
+  }, [cart.length, navigate]);
 
   // Address Form State
   const [formData, setFormData] = useState({
@@ -51,11 +65,16 @@ export const CheckoutPage: React.FC = () => {
   // Payment Method
   const [paymentMethod, setPaymentMethod] = useState<
     'cod' | 'bkash' | 'nagad' | 'rocket' | 'card'
-  >('cod');
+  >('bkash');
 
-  // MFS Mobile Number & Pin/TrxID state
-  const [mfsNumber, setMfsNumber] = useState('01712345678');
+  // Unified MFS fields (supports bKash, Nagad, and Rocket)
+  const isMfs = isMfsPaymentMethod(paymentMethod);
+  const currentMfsConfig = isMfs ? MFS_CONFIGS[paymentMethod as MfsProvider] : null;
+
+  const [mfsNumber, setMfsNumber] = useState(currentUser?.phone || '01712345678');
   const [mfsTrxId, setMfsTrxId] = useState('');
+  const [mfsMode, setMfsMode] = useState<'trxid' | 'gateway'>('trxid');
+  const [copiedMerchant, setCopiedMerchant] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
@@ -90,7 +109,37 @@ export const CheckoutPage: React.FC = () => {
     'Mymensingh'
   ];
 
-  const executeOrderCreation = (paymentInfo?: { method: string; trxId: string; account: string }) => {
+  const handleCopyMerchant = () => {
+    if (currentMfsConfig && navigator.clipboard) {
+      navigator.clipboard.writeText(currentMfsConfig.merchantNumber.replace(/-/g, ''));
+      setCopiedMerchant(true);
+      setTimeout(() => setCopiedMerchant(false), 2000);
+      addToast({
+        type: 'info',
+        title: 'Merchant Number Copied',
+        message: `${currentMfsConfig.name}: ${currentMfsConfig.merchantNumber}`
+      });
+    }
+  };
+
+  const handleGenerateDemoTrxId = () => {
+    if (isMfs) {
+      const rand = generateDemoTrxId(paymentMethod as MfsProvider);
+      setMfsTrxId(rand);
+      addToast({
+        type: 'info',
+        title: 'Demo TrxID Generated',
+        message: `Sample ${currentMfsConfig?.name} TrxID: ${rand}`
+      });
+    }
+  };
+
+  const executeOrderCreation = (paymentInfo?: {
+    method: string;
+    trxId: string;
+    account: string;
+    paymentMode?: 'manual_trxid' | 'online_gateway';
+  }) => {
     setIsProcessing(true);
 
     const orderItems: OrderItem[] = cart.map((item) => ({
@@ -102,6 +151,22 @@ export const CheckoutPage: React.FC = () => {
     }));
 
     const fullAddress = `${formData.address}, ${formData.thana}, ${formData.city}, ${formData.division}`;
+
+    const effectiveTrx = paymentInfo?.trxId || (isMfs ? mfsTrxId.trim().toUpperCase() : undefined);
+    const effectiveSender = paymentInfo?.account || (isMfs ? mfsNumber.trim() : undefined);
+    const effectivePaymentMode =
+      paymentMethod === 'cod'
+        ? 'cod'
+        : paymentInfo?.paymentMode || (mfsMode === 'trxid' ? 'manual_trxid' : 'online_gateway');
+
+    const paymentLabel =
+      paymentMethod === 'cod'
+        ? 'Cash on Delivery'
+        : isMfs && currentMfsConfig
+        ? `${currentMfsConfig.name}${effectiveTrx ? ` (Trx: ${effectiveTrx})` : ''}`
+        : paymentInfo
+        ? `${paymentInfo.method} (Trx: ${paymentInfo.trxId})`
+        : paymentMethod.toUpperCase();
 
     const created = createOrder({
       items: orderItems,
@@ -116,13 +181,13 @@ export const CheckoutPage: React.FC = () => {
         city: formData.city,
         division: formData.division
       },
-      paymentMethod:
-        paymentMethod === 'cod'
-          ? 'Cash on Delivery'
-          : paymentInfo
-          ? `${paymentInfo.method} (Trx: ${paymentInfo.trxId})`
-          : paymentMethod.toUpperCase(),
+      paymentMethod: paymentLabel,
       paymentStatus: paymentMethod === 'cod' ? 'unpaid' : 'paid',
+      bkashTrxId: effectiveTrx,
+      trxId: effectiveTrx,
+      mfsProvider: isMfs ? (paymentMethod as MfsProvider) : paymentMethod === 'card' ? 'card' : 'cod',
+      mfsSenderNumber: effectiveSender,
+      paymentMode: effectivePaymentMode,
       sellerId: cart[0]?.product.sellerId || 'seller-1'
     });
 
@@ -143,6 +208,31 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
+    if (isMfs && currentMfsConfig) {
+      if (mfsMode === 'trxid') {
+        const validation = validateMfsTrxId(paymentMethod as MfsProvider, mfsTrxId);
+        if (!validation.isValid) {
+          addToast({
+            type: 'warning',
+            title: `${currentMfsConfig.name} TrxID Invalid`,
+            message: validation.error || `সঠিক ${currentMfsConfig.name} TrxID প্রদান করুন।`
+          });
+          return;
+        }
+        executeOrderCreation({
+          method: currentMfsConfig.name,
+          trxId: validation.cleanTrx,
+          account: mfsNumber.trim() || `${currentMfsConfig.logo} Wallet`,
+          paymentMode: 'manual_trxid'
+        });
+        return;
+      } else {
+        // Launch Gateway Modal
+        setShowPaymentModal(true);
+        return;
+      }
+    }
+
     if (paymentMethod !== 'cod') {
       setShowPaymentModal(true);
       return;
@@ -151,6 +241,10 @@ export const CheckoutPage: React.FC = () => {
     // Direct Cash on Delivery
     executeOrderCreation();
   };
+
+  if (cart.length === 0) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-6">
@@ -394,7 +488,7 @@ export const CheckoutPage: React.FC = () => {
                   onClick={() => setPaymentMethod('bkash')}
                   className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
                     paymentMethod === 'bkash'
-                      ? 'border-pink-500 bg-pink-50/40 ring-2 ring-pink-500/15'
+                      ? 'border-[#E2136E] bg-pink-50/50 ring-2 ring-pink-500/15 shadow-xs'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -404,19 +498,19 @@ export const CheckoutPage: React.FC = () => {
                       name="payment"
                       checked={paymentMethod === 'bkash'}
                       onChange={() => setPaymentMethod('bkash')}
-                      className="text-pink-600"
+                      className="text-[#E2136E]"
                     />
                     <div>
-                      <span className="font-bold text-xs sm:text-sm text-pink-700 block">
-                        bKash Mobile Banking
+                      <span className="font-bold text-xs sm:text-sm text-[#E2136E] block">
+                        bKash Mobile Banking (বিকাশ)
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        Instant payment via bKash gateway or wallet
+                        Manual TrxID or Instant Gateway via *247# / bKash App
                       </span>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-100 text-pink-700">
-                    Instant
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-[#E2136E]">
+                    1.5% Cashback
                   </span>
                 </label>
 
@@ -425,7 +519,7 @@ export const CheckoutPage: React.FC = () => {
                   onClick={() => setPaymentMethod('nagad')}
                   className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
                     paymentMethod === 'nagad'
-                      ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/15'
+                      ? 'border-[#F7931E] bg-amber-50/50 ring-2 ring-amber-500/15 shadow-xs'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -435,19 +529,50 @@ export const CheckoutPage: React.FC = () => {
                       name="payment"
                       checked={paymentMethod === 'nagad'}
                       onChange={() => setPaymentMethod('nagad')}
-                      className="text-amber-600"
+                      className="text-[#F7931E]"
                     />
                     <div>
-                      <span className="font-bold text-xs sm:text-sm text-amber-700 block">
-                        Nagad Digital Payment
+                      <span className="font-bold text-xs sm:text-sm text-[#F7931E] block">
+                        Nagad Digital Payment (নগদ)
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        Fast and secure payment with Nagad
+                        Fast postal digital MFS with TrxID validation or Gateway
                       </span>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-[#F7931E]">
                     Instant
+                  </span>
+                </label>
+
+                {/* Rocket */}
+                <label
+                  onClick={() => setPaymentMethod('rocket')}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                    paymentMethod === 'rocket'
+                      ? 'border-[#8C3494] bg-purple-50/50 ring-2 ring-purple-500/15 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={paymentMethod === 'rocket'}
+                      onChange={() => setPaymentMethod('rocket')}
+                      className="text-[#8C3494]"
+                    />
+                    <div>
+                      <span className="font-bold text-xs sm:text-sm text-[#8C3494] block">
+                        Rocket Mobile Banking (রকেট - DBBL)
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Dutch-Bangla Bank 12-digit MFS wallet or manual TrxID
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-[#8C3494]">
+                    Secure DBBL
                   </span>
                 </label>
 
@@ -456,7 +581,7 @@ export const CheckoutPage: React.FC = () => {
                   onClick={() => setPaymentMethod('card')}
                   className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
                     paymentMethod === 'card'
-                      ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-500/15'
+                      ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/15 shadow-xs'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -466,37 +591,221 @@ export const CheckoutPage: React.FC = () => {
                       name="payment"
                       checked={paymentMethod === 'card'}
                       onChange={() => setPaymentMethod('card')}
-                      className="text-blue-600"
+                      className="text-slate-900"
                     />
                     <div>
-                      <span className="font-bold text-xs sm:text-sm text-blue-800 block">
+                      <span className="font-bold text-xs sm:text-sm text-slate-900 block">
                         Credit / Debit Card (Visa, Mastercard, Amex)
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        3D Secure authentication through Bangladesh Bank verified gateway
+                        3D Secure 2.0 gateway verified by Bangladesh Bank
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">Cards</span>
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    Cards
+                  </span>
                 </label>
               </div>
 
-              {/* Conditional MFS / Card Input */}
-              {paymentMethod !== 'cod' && (
-                <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-3 animate-in fade-in duration-200">
-                  <div className="font-bold text-slate-800">
-                    Enter {paymentMethod.toUpperCase()} Account / Mobile Number:
+              {/* Unified MFS Payment Configuration Panel (bKash / Nagad / Rocket) */}
+              {isMfs && currentMfsConfig && (
+                <div
+                  className={`mt-4 p-5 rounded-2xl ${currentMfsConfig.brandBg} border ${currentMfsConfig.brandBorder} text-xs space-y-4 animate-in fade-in duration-200`}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full ${currentMfsConfig.brandColor} animate-pulse`}
+                      />
+                      <span className={`font-bold ${currentMfsConfig.brandText} text-sm`}>
+                        {currentMfsConfig.name} Payment Verification
+                      </span>
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${currentMfsConfig.brandColor} text-white shadow-xs`}
+                    >
+                      ৳{grandTotal.toLocaleString()}
+                    </span>
                   </div>
-                  <input
-                    type="text"
-                    value={mfsNumber}
-                    onChange={(e) => setMfsNumber(e.target.value)}
-                    placeholder="01XXXXXXXXX"
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-xs"
-                  />
-                  <p className="text-[10px] text-slate-500">
-                    A secure OTP simulation will be confirmed upon placing your order.
+
+                  {/* Mode Switcher: TrxID vs Gateway */}
+                  <div className="flex rounded-xl bg-white/80 p-1 border border-slate-200 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setMfsMode('trxid')}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        mfsMode === 'trxid'
+                          ? `${currentMfsConfig.brandColor} text-white shadow-xs`
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      TrxID দিয়ে সরাসরি অর্ডার (Manual TrxID)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMfsMode('gateway')}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        mfsMode === 'gateway'
+                          ? `${currentMfsConfig.brandColor} text-white shadow-xs`
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      অনলাইন গেটওয়ে (PIN Gateway)
+                    </button>
+                  </div>
+
+                  {/* Direct TrxID Mode */}
+                  {mfsMode === 'trxid' ? (
+                    <div className="space-y-3 pt-1">
+                      {/* Merchant Box */}
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                            Official {currentMfsConfig.logo} Merchant Number
+                          </span>
+                          <span
+                            className={`font-mono text-sm font-black ${currentMfsConfig.brandText}`}
+                          >
+                            {currentMfsConfig.merchantNumber}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCopyMerchant}
+                          className={`px-3 py-1.5 rounded-lg ${currentMfsConfig.brandBg} hover:opacity-90 ${currentMfsConfig.brandText} font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border ${currentMfsConfig.brandBorder}`}
+                        >
+                          {copiedMerchant ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="text-emerald-700">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy Number</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Instructions */}
+                      <div className="p-3 rounded-xl bg-white/70 text-[11px] text-slate-700 border border-slate-200/80 leading-relaxed">
+                        <p className="font-bold mb-1 text-slate-900">
+                          {currentMfsConfig.logo} পেমেন্ট করার সহজ ধাপসমূহ:
+                        </p>
+                        <ol className="list-decimal pl-4 space-y-0.5">
+                          <li>
+                            আপনার {currentMfsConfig.logo} অ্যাপ অথবা {currentMfsConfig.ussdCode} ডায়াল
+                            করে <strong>Payment</strong> / <strong>Send Money</strong> সিলেক্ট করুন।
+                          </li>
+                          <li>
+                            মার্চেন্ট নম্বর <strong>{currentMfsConfig.merchantNumber}</strong> এ সর্বমোট{' '}
+                            <strong>৳{grandTotal.toLocaleString()}</strong> পরিশোধ করুন।
+                          </li>
+                          <li>
+                            ফিরতি মেসেজ বা অ্যাপ হিস্ট্রি থেকে <strong>TrxID</strong> কপি করে নিচের বক্সে
+                            লিখুন।
+                          </li>
+                        </ol>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">
+                            আপনার {currentMfsConfig.logo} নম্বর (Sender Number)
+                          </label>
+                          <input
+                            type="tel"
+                            value={mfsNumber}
+                            onChange={(e) => setMfsNumber(e.target.value)}
+                            placeholder="01XXXXXXXXX"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-hidden focus:border-slate-400"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="font-bold text-slate-700">
+                              {currentMfsConfig.logo} TrxID <span className="text-rose-500">*</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={handleGenerateDemoTrxId}
+                              className={`text-[10px] font-bold ${currentMfsConfig.brandText} hover:underline cursor-pointer`}
+                            >
+                              + Demo TrxID
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={mfsTrxId}
+                            onChange={(e) => setMfsTrxId(e.target.value.toUpperCase())}
+                            placeholder={currentMfsConfig.samplePlaceholder}
+                            className={`w-full p-2.5 bg-white border-2 ${currentMfsConfig.brandBorder} rounded-xl font-mono text-xs font-black text-slate-900 tracking-wider uppercase outline-hidden`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                        <span>
+                          * TrxID লেখার পর নিচের <strong>'Confirm & Place Order'</strong> বাটনে চাপুন।
+                        </span>
+                        {mfsTrxId && (
+                          <span
+                            className={`font-semibold ${
+                              validateMfsTrxId(paymentMethod as MfsProvider, mfsTrxId).isValid
+                                ? 'text-emerald-600'
+                                : 'text-amber-600'
+                            }`}
+                          >
+                            {validateMfsTrxId(paymentMethod as MfsProvider, mfsTrxId).isValid
+                              ? '✓ Valid format'
+                              : 'Format warning'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* PIN Gateway Mode */
+                    <div className="space-y-3 pt-1 text-center py-2">
+                      <p className="text-xs text-slate-700">
+                        {currentMfsConfig.name} অনলাইন গেটওয়ের মাধ্যমে নিরাপদ ওরিজিনাল ওটিপি ও পিন
+                        সিমুলেশন করে অর্ডার সম্পন্ন করতে চান?
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowPaymentModal(true)}
+                        className={`py-2.5 px-5 ${currentMfsConfig.brandColor} hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-md transition-all inline-flex items-center gap-2 cursor-pointer`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Launch {currentMfsConfig.name}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Card Gateway Prompt */}
+              {paymentMethod === 'card' && (
+                <div className="mt-4 p-5 rounded-2xl bg-slate-900 text-white text-xs space-y-3 animate-in fade-in duration-200 shadow-md">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="font-bold text-slate-200">Bangladesh Bank 3D Secure Gateway</span>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono text-[10px]">
+                      Visa / Mastercard / Amex
+                    </span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    Click 'Confirm & Place Order' or launch the payment gateway directly to verify your card details via 3D Secure simulation.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowPaymentModal(true)}
+                    className="py-2.5 px-4 bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs rounded-xl transition-all inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Card Payment Gateway</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -590,8 +899,12 @@ export const CheckoutPage: React.FC = () => {
             onClose={() => setShowPaymentModal(false)}
             method={paymentMethod}
             amount={grandTotal}
+            initialTrxId={isMfs ? mfsTrxId : undefined}
             onSuccess={(paymentData) => {
-              executeOrderCreation(paymentData);
+              executeOrderCreation({
+                ...paymentData,
+                paymentMode: 'online_gateway'
+              });
             }}
           />
         )}

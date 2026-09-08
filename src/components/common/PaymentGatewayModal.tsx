@@ -9,8 +9,11 @@ import {
   AlertCircle,
   Clock,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Copy,
+  Check
 } from 'lucide-react';
+import { validateMfsTrxId, generateDemoTrxId, MFS_CONFIGS } from '../../utils/paymentValidation';
 
 export interface PaymentGatewayModalProps {
   isOpen: boolean;
@@ -18,6 +21,7 @@ export interface PaymentGatewayModalProps {
   method: 'bkash' | 'nagad' | 'rocket' | 'card';
   amount: number;
   orderNumber?: string;
+  initialTrxId?: string;
   onSuccess: (paymentData: { method: string; trxId: string; account: string }) => void;
 }
 
@@ -27,12 +31,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   method,
   amount,
   orderNumber = `SNX-${Math.floor(100000 + Math.random() * 900000)}`,
+  initialTrxId = '',
   onSuccess
 }) => {
+  const isMfs = method === 'bkash' || method === 'nagad' || method === 'rocket';
+  const [activeTab, setActiveTab] = useState<'gateway' | 'trxid'>(isMfs && initialTrxId ? 'trxid' : 'gateway');
   const [step, setStep] = useState<'account' | 'otp' | 'pin' | 'card' | 'processing'>('account');
-  const [accountNumber, setAccountNumber] = useState('01712345678');
+  const [accountNumber, setAccountNumber] = useState(
+    method === 'nagad' ? '01812345678' : method === 'rocket' ? '01912345678' : '01712345678'
+  );
   const [otp, setOtp] = useState('');
   const [pin, setPin] = useState('');
+  const [trxIdInput, setTrxIdInput] = useState(initialTrxId || '');
+  const [copiedMerchant, setCopiedMerchant] = useState(false);
   const [cardData, setCardData] = useState({
     number: '4111 2222 3333 4444',
     name: 'TANZIM HASAN',
@@ -50,8 +61,11 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
       brandColor: 'bg-[#E2136E]',
       brandBorder: 'border-[#E2136E]',
       brandText: 'text-[#E2136E]',
+      brandBg: 'bg-pink-50',
       logo: 'bKash',
       badge: 'Official Payment Partner',
+      merchantNumber: '01712-345678',
+      ussdCode: '*247#',
       demoOtp: '748291',
       defaultNumber: '01712345678'
     },
@@ -60,8 +74,11 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
       brandColor: 'bg-[#F7931E]',
       brandBorder: 'border-[#F7931E]',
       brandText: 'text-[#F7931E]',
+      brandBg: 'bg-amber-50',
       logo: 'NAGAD',
       badge: 'Bangladesh Post Digital MFS',
+      merchantNumber: '01812-345678',
+      ussdCode: '*167#',
       demoOtp: '519302',
       defaultNumber: '01812345678'
     },
@@ -70,8 +87,11 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
       brandColor: 'bg-[#8C3494]',
       brandBorder: 'border-[#8C3494]',
       brandText: 'text-[#8C3494]',
+      brandBg: 'bg-purple-50',
       logo: 'ROCKET',
       badge: 'DBBL Mobile Banking',
+      merchantNumber: '01912-345678-4',
+      ussdCode: '*322#',
       demoOtp: '638192',
       defaultNumber: '01912345678'
     },
@@ -80,14 +100,31 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
       brandColor: 'bg-slate-900',
       brandBorder: 'border-slate-800',
       brandText: 'text-slate-900',
+      brandBg: 'bg-slate-50',
       logo: 'VISA / MC',
       badge: 'Bangladesh Bank 3D Secure',
+      merchantNumber: 'SHOPNEXA-ONLINE',
+      ussdCode: '',
       demoOtp: '992211',
       defaultNumber: ''
     }
   };
 
   const config = providerConfig[method] || providerConfig.bkash;
+
+  const handleCopyMerchant = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(config.merchantNumber.replace(/-/g, ''));
+      setCopiedMerchant(true);
+      setTimeout(() => setCopiedMerchant(false), 2000);
+    }
+  };
+
+  const handleGenerateSampleTrx = () => {
+    const rand = generateDemoTrxId(method);
+    setTrxIdInput(rand);
+    setError(null);
+  };
 
   const handleAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +147,25 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     setStep('pin');
   };
 
+  const handleTrxIdSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const validation = validateMfsTrxId(method, trxIdInput);
+    if (!validation.isValid) {
+      setError(validation.error || 'সঠিক ট্রানজেকশন আইডি (TrxID) প্রদান করুন।');
+      return;
+    }
+    setError(null);
+    setStep('processing');
+
+    setTimeout(() => {
+      onSuccess({
+        method: config.name,
+        trxId: validation.cleanTrx,
+        account: accountNumber || `${config.logo} Wallet`
+      });
+    }, 1200);
+  };
+
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pin || pin.length < 4) {
@@ -120,10 +176,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     setStep('processing');
 
     setTimeout(() => {
-      const generatedTrxId = `${method.toUpperCase().slice(0, 3)}${Math.random()
-        .toString(36)
-        .substring(2, 9)
-        .toUpperCase()}`;
+      const generatedTrxId =
+        trxIdInput.trim().toUpperCase() ||
+        generateDemoTrxId(method);
       onSuccess({
         method: config.name,
         trxId: generatedTrxId,
@@ -192,6 +247,131 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
+          )}
+
+          {/* MFS Dual Mode Switcher (bKash, Nagad, Rocket) */}
+          {isMfs && step !== 'processing' && (
+            <div className={`flex rounded-xl ${config.brandBg} p-1 border ${config.brandBorder}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('trxid');
+                  setError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'trxid'
+                    ? `${config.brandColor} text-white shadow-xs`
+                    : `${config.brandText} hover:opacity-80`
+                }`}
+              >
+                {config.logo} TrxID প্রদান (Manual TrxID)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('gateway');
+                  setError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'gateway'
+                    ? `${config.brandColor} text-white shadow-xs`
+                    : `${config.brandText} hover:opacity-80`
+                }`}
+              >
+                অনলাইন গেটওয়ে (PIN Gateway)
+              </button>
+            </div>
+          )}
+
+          {/* MFS Direct TrxID Mode Form (bKash, Nagad, Rocket) */}
+          {isMfs && activeTab === 'trxid' && step !== 'processing' && (
+            <form onSubmit={handleTrxIdSubmit} className="space-y-4 text-xs">
+              <div className={`p-3.5 rounded-2xl ${config.brandBg} border ${config.brandBorder} space-y-2`}>
+                <div className="flex items-center justify-between">
+                  <span className={`font-bold ${config.brandText} text-xs`}>{config.logo} মার্চেন্ট নম্বর:</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyMerchant}
+                    className={`px-2.5 py-1 rounded-lg ${config.brandColor} text-white text-[10px] font-bold hover:opacity-95 transition cursor-pointer flex items-center gap-1`}
+                  >
+                    {copiedMerchant ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>কপি করুন</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className={`font-mono text-base font-black ${config.brandText} tracking-wider`}>
+                  {config.merchantNumber}
+                </div>
+                <p className="text-[11px] text-slate-700 leading-relaxed">
+                  আপনার {config.logo} অ্যাপ বা {config.ussdCode ? `${config.ussdCode} ডায়াল করে` : ''} মার্চেন্ট নম্বরে <strong>৳{amount.toLocaleString()}</strong> টাকা পেমেন্ট/সেন্ড মানি করুন এবং প্রাপ্ত <strong>TrxID</strong> নিচে এন্টার করুন।
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  আপনার {config.logo} মোবাইল নম্বর (Sender Number)
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="01XXXXXXXXX"
+                  className={`w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 outline-hidden focus:${config.brandBorder}`}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">
+                    {config.logo} ট্রানজেকশন আইডি ({config.logo} TrxID) <span className="text-rose-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSampleTrx}
+                    className={`text-[10px] font-bold ${config.brandText} hover:underline cursor-pointer`}
+                  >
+                    + Sample TrxID
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={trxIdInput}
+                  onChange={(e) => setTrxIdInput(e.target.value.toUpperCase())}
+                  placeholder={`e.g. ${config.logo === 'bKash' ? 'BK9823AB1' : config.logo === 'NAGAD' ? 'NG7842KM9' : 'RK9283741'}`}
+                  className={`w-full p-3 bg-slate-50 border-2 ${config.brandBorder} rounded-xl font-mono text-sm font-black text-slate-900 tracking-wider uppercase outline-hidden`}
+                />
+                <span className="text-[10px] text-slate-500 block mt-1">
+                  {config.logo} কনফার্মেশন এসএমএস থেকে প্রাপ্ত ৬-১৬ অক্ষরের TrxID টি লিখুন।
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 py-3 px-4 rounded-xl ${config.brandColor} hover:opacity-95 text-white font-black text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer`}
+                >
+                  <span>Verify & Confirm</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
           )}
 
           {/* STEP: Card Payment */}
@@ -283,7 +463,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           )}
 
           {/* STEP 1: MFS Account Number */}
-          {method !== 'card' && step === 'account' && (
+          {method !== 'card' && !(isMfs && activeTab === 'trxid') && step === 'account' && (
             <form onSubmit={handleAccountSubmit} className="space-y-4 text-xs">
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
                 <Smartphone className={`w-8 h-8 ${config.brandText}`} />

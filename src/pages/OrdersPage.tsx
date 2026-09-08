@@ -16,25 +16,28 @@ import { OrderTrackingModal } from '../components/common/OrderTrackingModal';
 import { TaxInvoiceModal } from '../components/common/TaxInvoiceModal';
 import { Order } from '../types';
 import { sanitizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
+import { extractPaymentDetails } from '../utils/paymentValidation';
 
 export const OrdersPage: React.FC = () => {
-  const { orders, cancelOrder, addToCart, addToast } = useStore();
+  const { orders, cancelOrder, addToCart, getProductById, addToast } = useStore();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter((o) => {
     if (filterStatus === 'all') return true;
-    return o.status.toLowerCase() === filterStatus.toLowerCase();
+    return (o.status || '').toLowerCase() === filterStatus.toLowerCase();
   });
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string = 'Pending') => {
     switch (status.toLowerCase()) {
       case 'delivered':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'shipped':
+      case 'out for delivery':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'processing':
+      case 'confirmed':
         return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'cancelled':
         return 'bg-rose-100 text-rose-800 border-rose-200';
@@ -44,15 +47,32 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
-  const handleReorder = (order: typeof orders[0]) => {
+  const handleReorder = (order: Order) => {
+    let readdedCount = 0;
     order.items.forEach((item) => {
-      addToCart(item.product, item.quantity);
+      const prod = item.product || (item.productId ? getProductById(item.productId) : undefined);
+      if (prod) {
+        addToCart(prod, item.quantity);
+        readdedCount++;
+      }
     });
     addToast({
       type: 'success',
       title: 'Items Added to Cart',
-      message: `${order.items.length} items from order ${order.id} re-added to your cart.`
+      message: `${readdedCount || order.items.length} items from order #${order.orderNumber || order.id} re-added to your cart.`
     });
+  };
+
+  const formatOrderDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+    } catch {
+      // fallback
+    }
+    return dateStr || 'Recent';
   };
 
   return (
@@ -93,74 +113,94 @@ export const OrdersPage: React.FC = () => {
 
         {filteredOrders.length > 0 ? (
           <div className="space-y-4">
-            {filteredOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs"
-              >
-                {/* Order Top Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 text-xs">
-                  <div className="flex items-center gap-3">
-                    <span className="font-extrabold text-slate-900">Order #{order.id}</span>
-                    <span className="text-slate-400">•</span>
-                    <span className="text-slate-500">{order.createdAt}</span>
-                    <span className="text-slate-400 hidden sm:inline">•</span>
-                    <span className="text-slate-500 font-mono hidden sm:inline">
-                      Track: {order.trackingNumber}
-                    </span>
-                  </div>
+            {filteredOrders.map((order) => {
+              const payment = extractPaymentDetails(order);
 
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase border ${getStatusBadge(
-                        order.status
-                      )}`}
-                    >
-                      {order.status}
-                    </span>
+              return (
+                <div
+                  key={order.id}
+                  className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-xs"
+                >
+                  {/* Order Top Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 text-xs">
+                    <div className="flex items-center gap-3">
+                      <span className="font-extrabold text-slate-900">Order #{order.orderNumber || order.id}</span>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-500">{formatOrderDate(order.createdAt)}</span>
+                      <span className="text-slate-400 hidden sm:inline">•</span>
+                      <span className="text-slate-500 font-mono hidden sm:inline">
+                        Track: {order.trackingNumber || order.orderNumber || order.id}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {payment.trxId && (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${payment.brandBg} border ${payment.brandBorder} ${payment.brandText}`}
+                        >
+                          {payment.providerName}: {payment.trxId}
+                        </span>
+                      )}
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase border ${getStatusBadge(
+                          order.status
+                        )}`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
                 {/* Items */}
                 <div className="py-4 space-y-3">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <img
-                          src={sanitizeImageUrl(item.product.images[0], item.product.category)}
-                          alt={item.product.title}
-                          referrerPolicy="no-referrer"
-                          onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
-                          className="w-12 h-12 object-cover rounded-xl bg-slate-50 border border-slate-100 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <Link
-                            to={`/product/${item.product.id}`}
-                            className="text-xs font-bold text-slate-800 hover:text-orange-600 transition-colors line-clamp-1"
-                          >
-                            {item.product.title}
-                          </Link>
-                          <span className="text-[11px] text-slate-400">
-                            Qty: {item.quantity} × ৳{item.price.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
+                  {order.items.map((item, idx) => {
+                    const itemTitle = item.product?.title || item.title || 'Marketplace Product';
+                    const itemImage = item.product?.images?.[0] || item.image || FALLBACK_PRODUCT_IMAGE;
+                    const itemCategory = item.product?.category || 'General';
+                    const itemId = item.product?.id || item.productId || 'prod-1';
 
-                      <span className="text-xs font-extrabold text-slate-900">
-                        ৳{(item.price * item.quantity).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
+                    return (
+                      <div key={idx} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={sanitizeImageUrl(itemImage, itemCategory)}
+                            alt={itemTitle}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
+                            className="w-12 h-12 object-cover rounded-xl bg-slate-50 border border-slate-100 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <Link
+                              to={`/product/${itemId}`}
+                              className="text-xs font-bold text-slate-800 hover:text-orange-600 transition-colors line-clamp-1"
+                            >
+                              {itemTitle}
+                            </Link>
+                            <span className="text-[11px] text-slate-400">
+                              Qty: {item.quantity} × ৳{item.price.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="text-xs font-extrabold text-slate-900">
+                          ৳{(item.price * item.quantity).toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Bottom Total & Actions */}
                 <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-xs">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-slate-500">Total:</span>
                     <span className="text-base font-black text-slate-900">
                       ৳{order.total.toLocaleString()}
                     </span>
-                    <span className="text-slate-400">({order.paymentMethod})</span>
+                    <span className="text-slate-500 font-medium">
+                      ({payment.providerName}
+                      {payment.modeLabel ? ` • ${payment.modeLabel}` : ''})
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -199,7 +239,8 @@ export const OrdersPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         ) : (
           <EmptyState

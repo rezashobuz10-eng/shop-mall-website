@@ -142,6 +142,26 @@ interface StoreContextType {
   // Theme (Dark / Light)
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+
+  // Comparison
+  comparisonProducts: Product[];
+  addToComparison: (product: Product) => void;
+  removeFromComparison: (productId: string) => void;
+  clearComparison: () => void;
+  isComparisonOpen: boolean;
+  setIsComparisonOpen: (open: boolean) => void;
+
+  // Lucky Spin Wheel
+  isLuckyWheelOpen: boolean;
+  setIsLuckyWheelOpen: (open: boolean) => void;
+
+  // 10/10 Trust & Rating Scorecard
+  isTrustScorecardOpen: boolean;
+  setIsTrustScorecardOpen: (open: boolean) => void;
+
+  // Price Drop Alert Modal
+  priceDropModalProduct: Product | null;
+  setPriceDropModalProduct: (product: Product | null) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -676,7 +696,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       shippingAddress: orderData.shippingAddress || (currentUser?.addresses[0] as Address),
       shippingMethod: orderData.shippingMethod || 'Standard Delivery',
       paymentMethod: orderData.paymentMethod || 'Cash on Delivery',
-      paymentStatus: orderData.paymentMethod === 'Cash on Delivery' ? 'Pending' : 'Paid',
+      paymentStatus: orderData.paymentStatus || (orderData.paymentMethod === 'Cash on Delivery' ? 'Pending' : 'Paid'),
+      bkashTrxId: orderData.bkashTrxId || orderData.trxId,
+      trxId: orderData.trxId || orderData.bkashTrxId,
+      mfsProvider: orderData.mfsProvider,
+      mfsSenderNumber: orderData.mfsSenderNumber,
+      paymentMode: orderData.paymentMode,
+      sellerId: orderData.sellerId || 'seller-1',
       status: 'Confirmed',
       timeline: [
         {
@@ -1084,6 +1110,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
+  // Comparison
+  const [comparisonProducts, setComparisonProducts] = useState<Product[]>(() => {
+    return loadFromStorage<Product[]>('sn_comparison', []);
+  });
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('sn_comparison', JSON.stringify(comparisonProducts));
+  }, [comparisonProducts]);
+
+  const addToComparison = (product: Product) => {
+    if (comparisonProducts.some((p) => p.id === product.id)) {
+      addToast({
+        type: 'info',
+        title: 'Already in Comparison',
+        message: `${product.title.slice(0, 30)}... is already in your comparison list.`
+      });
+      return;
+    }
+    if (comparisonProducts.length >= 4) {
+      addToast({
+        type: 'warning',
+        title: 'Comparison Limit Reached',
+        message: 'You can compare up to 4 products at the same time.'
+      });
+      return;
+    }
+    setComparisonProducts((prev) => [...prev, product]);
+    addToast({
+      type: 'success',
+      title: 'Added to Comparison',
+      message: `${product.title.slice(0, 30)}... added to comparison.`
+    });
+  };
+
+  const removeFromComparison = (productId: string) => {
+    setComparisonProducts((prev) => prev.filter((p) => p.id !== productId));
+  };
+
+  const clearComparison = () => {
+    setComparisonProducts([]);
+  };
+
+  // Lucky Spin Wheel
+  const [isLuckyWheelOpen, setIsLuckyWheelOpen] = useState(false);
+
+  // 10/10 Trust & Rating Scorecard
+  const [isTrustScorecardOpen, setIsTrustScorecardOpen] = useState(false);
+
+  // Price Drop Alert Modal
+  const [priceDropModalProduct, setPriceDropModalProduct] = useState<Product | null>(null);
+
   return (
     <StoreContext.Provider
       value={{
@@ -1170,7 +1248,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setLanguage,
         toggleLanguage,
         isDarkMode,
-        toggleDarkMode
+        toggleDarkMode,
+        comparisonProducts,
+        addToComparison,
+        removeFromComparison,
+        clearComparison,
+        isComparisonOpen,
+        setIsComparisonOpen,
+        isLuckyWheelOpen,
+        setIsLuckyWheelOpen,
+        isTrustScorecardOpen,
+        setIsTrustScorecardOpen,
+        priceDropModalProduct,
+        setPriceDropModalProduct
       }}
     >
       {children}

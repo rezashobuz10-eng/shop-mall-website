@@ -98,33 +98,57 @@ export type OrderStatus =
   | 'Cancelled';
 
 export interface OrderItem {
-  productId: string;
-  title: string;
-  image: string;
+  productId?: string;
+  title?: string;
+  image?: string;
   price: number;
   quantity: number;
-  sellerName: string;
+  sellerName?: string;
+  product?: Product;
+  selectedColor?: string;
+  selectedSize?: string;
 }
 
 export interface Order {
   id: string;
-  orderNumber: string;
-  userId: string;
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string;
+  orderNumber?: string;
+  trackingNumber?: string;
+  estimatedDelivery?: string;
+  userId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
   items: OrderItem[];
   subtotal: number;
   discount: number;
   shippingFee: number;
   total: number;
-  shippingAddress: Address;
-  shippingMethod: 'Standard Delivery' | 'Express Delivery';
-  paymentMethod: 'Cash on Delivery' | 'Card' | 'Mobile Payment (bKash/Nagad)';
-  paymentStatus: 'Pending' | 'Paid';
-  status: OrderStatus;
-  timeline: {
-    status: OrderStatus;
+  shippingAddress: Address | {
+    id?: string;
+    fullName?: string;
+    phone?: string;
+    division?: string;
+    district?: string;
+    city?: string;
+    area?: string;
+    address?: string;
+    fullAddress?: string;
+    postalCode?: string;
+    isDefault?: boolean;
+    label?: 'Home' | 'Office';
+  };
+  shippingMethod?: 'Standard Delivery' | 'Express Delivery' | string;
+  paymentMethod: string;
+  paymentStatus: 'Pending' | 'Paid' | 'unpaid' | 'paid' | string;
+  bkashTrxId?: string;
+  trxId?: string;
+  mfsProvider?: 'bkash' | 'nagad' | 'rocket' | 'card' | 'cod' | string;
+  mfsSenderNumber?: string;
+  paymentMode?: 'manual_trxid' | 'online_gateway' | 'cod';
+  sellerId?: string;
+  status: OrderStatus | string;
+  timeline?: {
+    status: OrderStatus | string;
     timestamp: string;
     description: string;
     completed: boolean;

@@ -19,6 +19,7 @@ import { SmsNotificationToast } from '../components/common/SmsNotificationToast'
 import { soundEngine } from '../utils/audioFeedback';
 import { Order } from '../types';
 import { sanitizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
+import { extractPaymentDetails } from '../utils/paymentValidation';
 
 export const OrderSuccessPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,8 @@ export const OrderSuccessPage: React.FC = () => {
     );
   }
 
+  const paymentDetails = extractPaymentDetails(order);
+
   const handlePrint = () => {
     window.print();
   };
@@ -64,18 +67,37 @@ export const OrderSuccessPage: React.FC = () => {
             Thank you for shopping with ShopNexa. We have notified the verified seller to prepare your package for courier pickup.
           </p>
 
-          <div className="inline-flex flex-wrap items-center justify-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 mb-8 text-left">
             <div>
               <span className="text-slate-400 block">Order ID</span>
-              <span className="font-extrabold text-slate-900">{order.id}</span>
+              <span className="font-extrabold text-slate-900">{order.orderNumber || order.id}</span>
             </div>
-            <div className="border-l border-slate-200 pl-4">
+            <div className="border-l border-slate-200 pl-3">
               <span className="text-slate-400 block">Tracking Number</span>
-              <span className="font-extrabold text-orange-600 font-mono">{order.trackingNumber}</span>
+              <span className="font-extrabold text-orange-600 font-mono">
+                {order.trackingNumber || `STF-${(order.orderNumber || order.id).slice(-6).toUpperCase()}`}
+              </span>
             </div>
-            <div className="border-l border-slate-200 pl-4">
+            <div className="border-l border-slate-200 pl-3">
+              <span className="text-slate-400 block">Payment</span>
+              <span className="font-extrabold text-slate-900 truncate block">
+                {paymentDetails.providerName}
+              </span>
+              {paymentDetails.trxId ? (
+                <span className={`text-[10px] font-mono font-bold ${paymentDetails.brandText} block`}>
+                  Trx: {paymentDetails.trxId}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 block font-medium">
+                  {paymentDetails.modeLabel || paymentDetails.statusBadge}
+                </span>
+              )}
+            </div>
+            <div className="border-l border-slate-200 pl-3">
               <span className="text-slate-400 block">Estimated Arrival</span>
-              <span className="font-extrabold text-slate-900">{order.estimatedDelivery}</span>
+              <span className="font-extrabold text-slate-900">
+                {order.estimatedDelivery || '2 - 3 Days'}
+              </span>
             </div>
           </div>
 
@@ -136,28 +158,34 @@ export const OrderSuccessPage: React.FC = () => {
               Purchased Items
             </h3>
             <div className="space-y-3">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img
-                      src={sanitizeImageUrl(item.product.images[0], item.product.category)}
-                      alt={item.product.title}
-                      referrerPolicy="no-referrer"
-                      onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
-                      className="w-12 h-12 object-cover rounded-xl bg-slate-50 border border-slate-100 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-800 truncate">{item.product.title}</p>
-                      <span className="text-slate-400 text-[11px]">
-                        Qty: {item.quantity} × ৳{item.price.toLocaleString()}
-                      </span>
+              {order.items.map((item, idx) => {
+                const itemTitle = item.product?.title || item.title || 'Marketplace Product';
+                const itemImage = item.product?.images?.[0] || item.image || FALLBACK_PRODUCT_IMAGE;
+                const itemCategory = item.product?.category || 'General';
+
+                return (
+                  <div key={idx} className="flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={sanitizeImageUrl(itemImage, itemCategory)}
+                        alt={itemTitle}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
+                        className="w-12 h-12 object-cover rounded-xl bg-slate-50 border border-slate-100 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 truncate">{itemTitle}</p>
+                        <span className="text-slate-400 text-[11px]">
+                          Qty: {item.quantity} × ৳{item.price.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
+                    <span className="font-black text-slate-900 shrink-0">
+                      ৳{(item.price * item.quantity).toLocaleString()}
+                    </span>
                   </div>
-                  <span className="font-black text-slate-900 shrink-0">
-                    ৳{(item.price * item.quantity).toLocaleString()}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Total breakdown */}
@@ -189,7 +217,15 @@ export const OrderSuccessPage: React.FC = () => {
             <p className="font-semibold text-slate-800">{order.shippingAddress.fullName}</p>
             <p>{order.shippingAddress.address}</p>
             <p>Phone: {order.shippingAddress.phone}</p>
-            <p>Payment: {order.paymentMethod} ({order.paymentStatus})</p>
+            <p>
+              Payment: <span className="font-semibold text-slate-800">{paymentDetails.providerName}</span>
+              {paymentDetails.trxId && (
+                <span className="font-mono text-slate-700 font-semibold"> (Trx: {paymentDetails.trxId})</span>
+              )}
+              <span className={`ml-1 font-bold ${paymentDetails.statusBadge === 'Paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                • {paymentDetails.statusBadge}
+              </span>
+            </p>
           </div>
 
           {/* Action buttons */}

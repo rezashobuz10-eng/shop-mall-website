@@ -13,6 +13,10 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { QuickViewModal } from './components/common/QuickViewModal';
 import { PromotionalPopup } from './components/common/PromotionalPopup';
 import { LiveSupportWidget } from './components/common/LiveSupportWidget';
+import { LuckySpinWheelModal } from './components/common/LuckySpinWheelModal';
+import { ProductComparisonModal } from './components/common/ProductComparisonModal';
+import { TrustScorecardModal } from './components/common/TrustScorecardModal';
+import { PriceDropAlertModal } from './components/common/PriceDropAlertModal';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -63,6 +67,18 @@ const AppContent: React.FC = () => {
 
       {/* Professional Welcome & First Order Discount Popup */}
       <PromotionalPopup />
+
+      {/* Lucky Spin Wheel Modal */}
+      <LuckySpinWheelModal />
+
+      {/* Product Comparison Dock & Modal */}
+      <ProductComparisonModal />
+
+      {/* 10/10 Buyer Protection & Trust Scorecard Modal */}
+      <TrustScorecardModal />
+
+      {/* Price Drop Alert Modal */}
+      <PriceDropAlertModal />
 
       {/* Top Bars */}
       <AnnouncementBar />

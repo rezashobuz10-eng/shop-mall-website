@@ -23,7 +23,11 @@ import {
   Zap,
   Sun,
   Moon,
-  Calculator
+  Calculator,
+  Gift,
+  Star,
+  Scale,
+  Sparkles
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 import { useStore } from '../../context/StoreContext';
@@ -50,7 +54,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
     language,
     setLanguage,
     isDarkMode,
-    toggleDarkMode
+    toggleDarkMode,
+    setIsLuckyWheelOpen,
+    setIsTrustScorecardOpen,
+    comparisonProducts,
+    setIsComparisonOpen
   } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -244,7 +252,45 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           </div>
 
           {/* Action Icons */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* 10/10 Trust & Rating Scorecard Button */}
+            <button
+              type="button"
+              onClick={() => setIsTrustScorecardOpen(true)}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black transition-all cursor-pointer hover:scale-102 shadow-2xs"
+              title="১০ এ ১০ কাস্টমার ট্রাস্ট স্কোরকার্ড দেখুন"
+            >
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+              <span>10/10 Rating</span>
+            </button>
+
+            {/* Daily Lucky Spin & Win Button */}
+            <button
+              type="button"
+              onClick={() => setIsLuckyWheelOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white text-xs font-black shadow-sm transition-all cursor-pointer hover:scale-102"
+              title="লাকি ড্র ঘুরিয়ে ভাউচার জিতুন"
+            >
+              <Gift className="w-3.5 h-3.5 animate-bounce" />
+              <span className="hidden sm:inline">Spin & Win</span>
+            </button>
+
+            {/* Product Comparison Button (If active items) */}
+            {comparisonProducts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsComparisonOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                title="প্রোডাক্ট পাশাপাশি তুলনা করুন"
+              >
+                <Scale className="w-3.5 h-3.5 text-orange-400" />
+                <span className="hidden sm:inline">Compare</span>
+                <span className="w-4 h-4 rounded-full bg-orange-600 text-white text-[10px] font-black flex items-center justify-center">
+                  {comparisonProducts.length}
+                </span>
+              </button>
+            )}
+
             {/* Notification Bell */}
             <div ref={notifRef} className="relative">
               <button

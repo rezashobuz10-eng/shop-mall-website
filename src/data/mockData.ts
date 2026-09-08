@@ -1481,6 +1481,198 @@ export const MOCK_PRODUCTS: Product[] = [
     },
     warranty: '1 Year Replacement Warranty',
     deliveryDays: 2
+  },
+
+  // 41. Audio - OnePlus Nord Buds 2
+  {
+    id: 'prod-41',
+    title: 'OnePlus Nord Buds 2 ANC True Wireless Earbuds (25dB Active Noise Cancellation)',
+    description: 'BassWave enhancement algorithm with 12.4mm dynamic titanium drivers, Dolby Atmos audio support, IP55 dust and water resistance, and up to 36 hours of playback with the fast-charging case.',
+    category: 'Audio',
+    brand: 'OnePlus',
+    price: 3490,
+    originalPrice: 4500,
+    discount: 22,
+    rating: 4.9,
+    reviewCount: 428,
+    soldCount: 2850,
+    stock: 45,
+    images: [
+      'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?auto=format&fit=crop&w=800&q=80'
+    ],
+    sellerId: 'seller-1',
+    sellerName: 'Star Tech & Engineering',
+    tags: ['earbuds', 'anc', 'oneplus', 'bluetooth', 'wireless'],
+    freeDelivery: true,
+    specifications: {
+      NoiseCancellation: 'Up to 25dB Active Noise Cancellation',
+      Drivers: '12.4mm Dynamic Titanium Diaphragm',
+      BatteryLife: '36 hours total with case (ANC Off)',
+      WaterResistance: 'IP55 Sweat and Splash Proof'
+    },
+    warranty: '6 Months Official Warranty',
+    deliveryDays: 1
+  },
+
+  // 42. Home Appliances - Philips XXL Smart Air Fryer
+  {
+    id: 'prod-42',
+    title: 'Philips 5000 Series Connected Air Fryer XXL 7.2L (Rapid Air Technology HD9280/90)',
+    description: 'Fry, bake, grill, roast and reheat with up to 90% less fat. Features 16-in-1 cooking functions, NutriU app integration with remote cooking alerts, and a dishwasher-safe non-stick QuickClean basket.',
+    category: 'Home Appliances',
+    brand: 'Philips',
+    price: 18900,
+    originalPrice: 22500,
+    discount: 16,
+    rating: 4.9,
+    reviewCount: 312,
+    soldCount: 1140,
+    stock: 22,
+    images: [
+      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80'
+    ],
+    sellerId: 'seller-3',
+    sellerName: 'Singer Bangladesh Official',
+    tags: ['air-fryer', 'philips', 'kitchen', 'appliance', 'healthy'],
+    freeDelivery: true,
+    specifications: {
+      Capacity: '7.2 Liters / 1.4 kg Basket',
+      Power: '2000W High Efficiency Heating',
+      PresetPrograms: '7 One-Touch Digital Presets',
+      Connectivity: 'Wi-Fi Enabled NutriU App'
+    },
+    warranty: '2 Years International Official Warranty',
+    deliveryDays: 2
+  },
+
+  // 43. Electronics - Baseus 100W Blade Power Bank
+  {
+    id: 'prod-43',
+    title: 'Baseus Blade 100W Ultra-Thin Laptop Power Bank 20000mAh (Dual Type-C Fast Charge)',
+    description: 'Ultra-slim 18mm aesthetic aluminum profile capable of charging high-power laptops like MacBook Pro, Dell XPS, Lenovo ThinkPad and iPad at full 100W PD speeds. Features digital power display showing real-time voltage and charging time.',
+    category: 'Electronics',
+    brand: 'Baseus',
+    price: 5650,
+    originalPrice: 7200,
+    discount: 21,
+    rating: 4.8,
+    reviewCount: 520,
+    soldCount: 3410,
+    stock: 60,
+    images: [
+      'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80'
+    ],
+    sellerId: 'seller-1',
+    sellerName: 'Star Tech & Engineering',
+    tags: ['powerbank', 'baseus', 'laptop-charger', '100w', 'type-c'],
+    freeDelivery: true,
+    specifications: {
+      BatteryCapacity: '20,000mAh / 74Wh Li-Polymer',
+      MaxOutput: '100W PD Dual Port Simultaneous',
+      Ports: '2x USB Type-C + 2x USB-A QC 3.0',
+      Thickness: '18mm Ultra-Slim Profile'
+    },
+    warranty: '1 Year Replacement Warranty',
+    deliveryDays: 1
+  },
+
+  // 44. Audio - Sony WH-1000XM5
+  {
+    id: 'prod-44',
+    title: 'Sony WH-1000XM5 Wireless Industry Leading Noise Canceling Over-Ear Headphones',
+    description: 'Two processors controlling 8 microphones for unprecedented noise cancellation. Superb hands-free calling with 4 beamforming microphones and advanced audio signal processing. Up to 30 hours battery life with quick charging (3 min for 3 hours).',
+    category: 'Audio',
+    brand: 'Sony',
+    price: 34900,
+    originalPrice: 41000,
+    discount: 15,
+    rating: 4.9,
+    reviewCount: 684,
+    soldCount: 1890,
+    stock: 18,
+    images: [
+      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=800&q=80'
+    ],
+    sellerId: 'seller-2',
+    sellerName: 'Ryans Computers Outlet',
+    tags: ['sony', 'headphones', 'anc', 'xm5', 'audiophile', 'wireless'],
+    freeDelivery: true,
+    specifications: {
+      Processors: 'HD Noise Canceling Processor QN1 & V1',
+      DriverUnit: '30mm Precision Engineered Carbon Fiber',
+      BatteryLife: '30 Hours (NC On) / 40 Hours (NC Off)',
+      Multipoint: 'Connects to two Bluetooth devices simultaneously'
+    },
+    warranty: '1 Year Official Sony Warranty',
+    deliveryDays: 1
+  },
+
+  // 45. Electronics - Logitech MX Master 3S
+  {
+    id: 'prod-45',
+    title: 'Logitech MX Master 3S Performance Wireless Ergonomic Mouse (Quiet Clicks & 8K DPI)',
+    description: 'Any-surface tracking including glass with 8000 DPI sensor. Quiet Click technology delivers 90% less click noise. MagSpeed electromagnetic scrolling scrolls 1,000 lines per second with pixel-level precision.',
+    category: 'Electronics',
+    brand: 'Logitech',
+    price: 10950,
+    originalPrice: 13500,
+    discount: 19,
+    rating: 4.9,
+    reviewCount: 890,
+    soldCount: 4200,
+    stock: 40,
+    images: [
+      'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=800&q=80'
+    ],
+    sellerId: 'seller-1',
+    sellerName: 'Star Tech & Engineering',
+    tags: ['logitech', 'mx-master', 'mouse', 'wireless', 'ergonomic', 'productivity'],
+    freeDelivery: true,
+    specifications: {
+      Sensor: 'Darkfield High Precision 8000 DPI',
+      Buttons: '7 Buttons with Gesture & Thumb Wheel',
+      Battery: 'Up to 70 days on a single full charge',
+      Connectivity: 'Bluetooth Low Energy & Logi Bolt USB Receiver'
+    },
+    warranty: '1 Year Official Warranty',
+    deliveryDays: 1
+  },
+
+  // 46. Home Appliances - Realme TechLife Robot Vacuum Cleaner
+  {
+    id: 'prod-46',
+    title: 'Realme TechLife Smart LiDAR Robot Vacuum Cleaner & Mop (3000Pa Cyclone Suction)',
+    description: '38 high-precision sensors with LiDAR navigation mapping and obstacle avoidance. 3000Pa powerful cyclone suction with 2-in-1 sweeping and electronic water flow mopping. Compatible with Google Assistant and Alexa.',
+    category: 'Home Appliances',
+    brand: 'Realme',
+    price: 26500,
+    originalPrice: 32000,
+    discount: 17,
+    rating: 4.8,
+    reviewCount: 156,
+    soldCount: 510,
+    stock: 15,
+    images: [
+      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80'
+    ],
+    sellerId: 'seller-3',
+    sellerName: 'Singer Bangladesh Official',
+    tags: ['robot-vacuum', 'cleaner', 'realme', 'smart-home', 'mopping'],
+    freeDelivery: true,
+    specifications: {
+      SuctionPower: '3000Pa Max Cyclone Suction',
+      Navigation: 'LiDAR Smart LDS Laser Mapping System',
+      DustbinCapacity: '600ml Dustbin + 300ml Water Tank',
+      Battery: '5200mAh (Up to 300 minutes runtime)'
+    },
+    warranty: '1 Year Replacement Warranty',
+    deliveryDays: 2
   }
 ];
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, Eye, Truck, Zap } from 'lucide-react';
+import { Heart, ShoppingBag, Eye, Truck, Zap, Scale, Bell } from 'lucide-react';
 import { Product } from '../../types';
 import { RatingStars } from './RatingStars';
 import { useStore } from '../../context/StoreContext';
@@ -16,8 +16,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   variant = 'default'
 }) => {
-  const { addToCart, toggleWishlist, isInWishlist, setQuickViewProduct } = useStore();
+  const {
+    addToCart,
+    toggleWishlist,
+    isInWishlist,
+    setQuickViewProduct,
+    addToComparison,
+    comparisonProducts,
+    setPriceDropModalProduct
+  } = useStore();
   const inWishlist = isInWishlist(product.id);
+  const isCompared = comparisonProducts.some((p) => p.id === product.id);
 
   const primaryImage = sanitizeImageUrl(product.images?.[0], product.category);
   const backupImage = product.images?.[1]
@@ -42,6 +51,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setQuickViewProduct(product);
+  };
+
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToComparison(product);
+  };
+
+  const handlePriceAlert = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPriceDropModalProduct(product);
   };
 
   if (variant === 'horizontal') {
@@ -161,6 +182,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             className="w-8 h-8 rounded-full bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-orange-600 flex items-center justify-center backdrop-blur-md shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 hidden sm:flex"
           >
             <Eye className="w-4 h-4" />
+          </button>
+
+          {/* Compare Button */}
+          <button
+            onClick={handleCompare}
+            title={isCompared ? 'In Comparison List' : 'Compare Product'}
+            aria-label="Compare"
+            className={`w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 hidden sm:flex ${
+              isCompared
+                ? 'bg-orange-600 text-white'
+                : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-orange-600'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Price Alert Button */}
+          <button
+            onClick={handlePriceAlert}
+            title="Set Price Drop Alert"
+            aria-label="Price Alert"
+            className="w-8 h-8 rounded-full bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-blue-600 flex items-center justify-center backdrop-blur-md shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 hidden sm:flex"
+          >
+            <Bell className="w-3.5 h-3.5" />
           </button>
         </div>
 

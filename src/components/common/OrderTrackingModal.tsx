@@ -11,9 +11,13 @@ import {
   Building,
   Navigation,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  CreditCard,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Order } from '../../types';
+import { extractPaymentDetails } from '../../utils/paymentValidation';
 
 export interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -29,9 +33,12 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   onAdvanceStatus
 }) => {
   const [copied, setCopied] = useState(false);
+  const [copiedTrx, setCopiedTrx] = useState(false);
   const [callRiderToast, setCallRiderToast] = useState(false);
 
   if (!isOpen || !order) return null;
+
+  const paymentDetails = extractPaymentDetails(order);
 
   const trackingSteps = [
     {
@@ -207,6 +214,61 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                 {order.shippingAddress?.fullAddress ||
                   `${order.shippingAddress?.district || 'Dhaka'}, Bangladesh`}
               </p>
+            </div>
+          </div>
+
+          {/* Payment & Verification Summary */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`w-8 h-8 rounded-xl ${paymentDetails.brandBg} ${paymentDetails.brandText} flex items-center justify-center font-black text-xs border ${paymentDetails.brandBorder}`}
+              >
+                {paymentDetails.isMfs ? paymentDetails.provider.slice(0, 2).toUpperCase() : 'PAY'}
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-slate-900">{paymentDetails.providerName}</span>
+                  {paymentDetails.modeLabel && (
+                    <span className="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                      {paymentDetails.modeLabel}
+                    </span>
+                  )}
+                </div>
+                {paymentDetails.senderNumber && (
+                  <span className="text-[10px] text-slate-400 block font-mono">
+                    Sender: {paymentDetails.senderNumber}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-right">
+              {paymentDetails.trxId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(paymentDetails.trxId!);
+                      setCopiedTrx(true);
+                      setTimeout(() => setCopiedTrx(false), 2000);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
+                  title="Copy TrxID"
+                >
+                  <span>Trx: {paymentDetails.trxId}</span>
+                  {copiedTrx ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                </button>
+              )}
+              <span
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  paymentDetails.statusBadge === 'Paid'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {paymentDetails.statusBadge}
+              </span>
             </div>
           </div>
 

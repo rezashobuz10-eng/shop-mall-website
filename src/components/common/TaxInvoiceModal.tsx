@@ -10,6 +10,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Order } from '../../types';
+import { extractPaymentDetails } from '../../utils/paymentValidation';
 
 export interface TaxInvoiceModalProps {
   isOpen: boolean;
@@ -28,13 +29,14 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({
     window.print();
   };
 
-  const invoiceDate = new Date(order.createdAt).toLocaleDateString('en-GB', {
+  const invoiceDate = new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric'
   });
 
-  const vatAmount = Math.round(order.subtotal * 0.05); // 5% standard retail VAT
+  const vatAmount = Math.round((order.subtotal || 0) * 0.05); // 5% standard retail VAT
+  const paymentDetails = extractPaymentDetails(order);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static">
@@ -97,13 +99,16 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({
                 FORM MUSHAK-6.3
               </span>
               <p className="text-base font-black text-slate-900 mt-1">
-                INVOICE #{order.id}
+                INVOICE #{order.orderNumber || order.id}
               </p>
               <p className="text-[11px] text-slate-500">
                 Date: <span className="font-semibold text-slate-800">{invoiceDate}</span>
               </p>
               <p className="text-[11px] text-slate-500">
-                Tracking No: <span className="font-mono font-bold text-orange-600">{order.trackingNumber}</span>
+                Tracking No:{' '}
+                <span className="font-mono font-bold text-orange-600">
+                  {order.trackingNumber || `STF-${(order.orderNumber || order.id).slice(-6).toUpperCase()}`}
+                </span>
               </p>
             </div>
           </div>
@@ -114,13 +119,23 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({
               <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
                 Customer / Bill To
               </span>
-              <p className="font-bold text-slate-900 text-sm">{order.shippingAddress.fullName}</p>
-              <p className="text-slate-600 mt-0.5">{order.shippingAddress.address}</p>
+              <p className="font-bold text-slate-900 text-sm">
+                {(order.shippingAddress as any)?.fullName || order.customerName || 'Customer'}
+              </p>
+              <p className="text-slate-600 mt-0.5">
+                {(order.shippingAddress as any)?.fullAddress || (order.shippingAddress as any)?.address || 'Standard Shipping Address'}
+              </p>
               <p className="text-slate-600">
-                {order.shippingAddress.city}, {order.shippingAddress.division}
+                {[
+                  (order.shippingAddress as any)?.area,
+                  (order.shippingAddress as any)?.district || (order.shippingAddress as any)?.city,
+                  (order.shippingAddress as any)?.division
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
               </p>
               <p className="text-slate-600 font-semibold mt-0.5">
-                Phone: {order.shippingAddress.phone}
+                Phone: {(order.shippingAddress as any)?.phone || order.customerPhone || 'N/A'}
               </p>
             </div>
 
@@ -129,20 +144,40 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({
                 Payment & Fulfillment
               </span>
               <p className="font-bold text-slate-900">
-                Method: <span className="uppercase text-orange-600">{order.paymentMethod}</span>
+                Method: <span className="uppercase text-orange-600">{paymentDetails.providerName}</span>
               </p>
-              <p className="text-slate-600">
+              {paymentDetails.modeLabel && (
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Mode: <span className="font-semibold text-slate-800">{paymentDetails.modeLabel}</span>
+                </p>
+              )}
+              {paymentDetails.trxId && (
+                <p className="text-[11px] font-mono font-bold mt-0.5">
+                  <span className="text-slate-500 font-normal">{paymentDetails.providerName} TrxID: </span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-900">
+                    {paymentDetails.trxId}
+                  </span>
+                </p>
+              )}
+              {paymentDetails.senderNumber && (
+                <p className="text-[10px] text-slate-500 font-mono">
+                  Sender: {paymentDetails.senderNumber}
+                </p>
+              )}
+              <p className="text-slate-600 mt-0.5">
                 Payment Status:{' '}
                 <span
                   className={`font-bold ${
-                    order.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-amber-600'
+                    paymentDetails.statusBadge === 'Paid' ? 'text-emerald-600' : 'text-amber-600'
                   }`}
                 >
-                  {order.paymentStatus}
+                  {paymentDetails.statusBadge}
                 </span>
               </p>
               <p className="text-slate-600">Courier: Steadfast Express Logistics</p>
-              <p className="text-slate-600">Estimated Delivery: {order.estimatedDelivery}</p>
+              <p className="text-slate-600">
+                Estimated Delivery: {order.estimatedDelivery || '2 - 3 Days'}
+              </p>
             </div>
           </div>
 
@@ -159,26 +194,31 @@ export const TaxInvoiceModal: React.FC<TaxInvoiceModalProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {order.items.map((item, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2.5 px-2 text-slate-400 font-mono">{idx + 1}</td>
-                    <td className="py-2.5 px-2">
-                      <p className="font-bold text-slate-800">{item.product.title}</p>
-                      <span className="text-[10px] text-slate-400">
-                        Category: {item.product.category}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-2 text-center font-bold text-slate-700">
-                      {item.quantity}
-                    </td>
-                    <td className="py-2.5 px-2 text-right text-slate-700">
-                      ৳{item.price.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-2 text-right font-bold text-slate-900">
-                      ৳{(item.price * item.quantity).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {order.items.map((item, idx) => {
+                  const itemTitle = item.product?.title || item.title || 'Marketplace Product';
+                  const itemCategory = item.product?.category || 'General';
+
+                  return (
+                    <tr key={idx}>
+                      <td className="py-2.5 px-2 text-slate-400 font-mono">{idx + 1}</td>
+                      <td className="py-2.5 px-2">
+                        <p className="font-bold text-slate-800">{itemTitle}</p>
+                        <span className="text-[10px] text-slate-400">
+                          Category: {itemCategory}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-2 text-center font-bold text-slate-700">
+                        {item.quantity}
+                      </td>
+                      <td className="py-2.5 px-2 text-right text-slate-700">
+                        ৳{item.price.toLocaleString()}
+                      </td>
+                      <td className="py-2.5 px-2 text-right font-bold text-slate-900">
+                        ৳{(item.price * item.quantity).toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

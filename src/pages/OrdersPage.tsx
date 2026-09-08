@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   Package,
   Truck,
@@ -19,10 +19,25 @@ import { sanitizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../u
 import { extractPaymentDetails } from '../utils/paymentValidation';
 
 export const OrdersPage: React.FC = () => {
+  const { id } = useParams<{ id?: string }>();
   const { orders, cancelOrder, addToCart, getProductById, addToast } = useStore();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (id) {
+      const match = orders.find(
+        (o) =>
+          o.id.toLowerCase() === id.toLowerCase() ||
+          (o.orderNumber && o.orderNumber.toLowerCase() === id.toLowerCase()) ||
+          (o.trackingNumber && o.trackingNumber.toLowerCase() === id.toLowerCase())
+      );
+      if (match) {
+        setTrackingOrder(match);
+      }
+    }
+  }, [id, orders]);
 
   const filteredOrders = orders.filter((o) => {
     if (filterStatus === 'all') return true;

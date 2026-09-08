@@ -25,6 +25,7 @@ import { ProductDetailPage } from './pages/ProductDetailPage';
 import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderSuccessPage } from './pages/OrderSuccessPage';
+import { ThankYouPage } from './pages/ThankYouPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { SellerStorePage } from './pages/SellerStorePage';
 import { SellerDashboardPage } from './pages/SellerDashboardPage';
@@ -96,8 +97,18 @@ const AppContent: React.FC = () => {
           <Route path="/product/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/order-success/:id" element={<OrderSuccessPage />} />
+          {/* Order Thank You, success & Tracking routes */}
+          <Route path="/thank-you/:id" element={<ThankYouPage />} />
+          <Route path="/thank-you" element={<ThankYouPage />} />
+          <Route path="/order-success/:id" element={<ThankYouPage />} />
+          <Route path="/order-success" element={<ThankYouPage />} />
+          <Route path="/order/:id" element={<ThankYouPage />} />
+          <Route path="/order" element={<OrdersPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/:id" element={<OrdersPage />} />
+          <Route path="/track-order" element={<OrdersPage />} />
+          <Route path="/track-order/:id" element={<OrdersPage />} />
+          <Route path="/track/:id" element={<OrdersPage />} />
           <Route path="/seller/:id" element={<SellerStorePage />} />
           <Route path="/store/:id" element={<SellerStorePage />} />
           <Route path="/seller-dashboard" element={<SellerDashboardPage />} />

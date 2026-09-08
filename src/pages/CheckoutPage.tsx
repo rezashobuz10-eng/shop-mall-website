@@ -193,7 +193,7 @@ export const CheckoutPage: React.FC = () => {
 
     setIsProcessing(false);
     setShowPaymentModal(false);
-    navigate(`/order-success/${created.id}`);
+    navigate(`/thank-you/${created.id}`, { state: { order: created } });
   };
 
   const handlePlaceOrder = (e: React.FormEvent) => {

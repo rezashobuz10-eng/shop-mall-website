@@ -745,7 +745,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date().toISOString()
     };
 
-    setOrders((prev) => [newOrder, ...prev]);
+    setOrders((prev) => {
+      const updated = [newOrder, ...prev.filter((o) => o.id !== newOrder.id)];
+      try {
+        localStorage.setItem('sn_orders', JSON.stringify(updated));
+        localStorage.setItem('sn_latest_order', JSON.stringify(newOrder));
+      } catch {
+        // ignore localStorage errors
+      }
+      return updated;
+    });
 
     // Clear ordered items from cart
     setCart((prev) => prev.filter((item) => !item.selected));

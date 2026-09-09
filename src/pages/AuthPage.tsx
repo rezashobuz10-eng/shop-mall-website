@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck, Store, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck, Store, CheckCircle2, Sparkles } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { useStore } from '../context/StoreContext';
+import { GoogleLogo, FacebookLogo, SocialLoginModal } from '../components/auth/SocialLoginModal';
 
 export const AuthPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,13 +12,19 @@ export const AuthPage: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'customer' | 'seller'>('customer');
+  const [socialModalProvider, setSocialModalProvider] = useState<'google' | 'facebook' | null>(null);
 
-  const { login, switchUserRole } = useStore();
+  const { login, switchUserRole, loginWithGoogle, loginWithFacebook } = useStore();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     login(email, password);
+    navigate('/');
+  };
+
+  const handleSocialSuccess = () => {
+    setSocialModalProvider(null);
     navigate('/');
   };
 
@@ -71,7 +78,7 @@ export const AuthPage: React.FC = () => {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-100 rounded-2xl p-1 mb-6 text-xs font-bold">
+        <div className="flex bg-slate-100 rounded-2xl p-1 mb-5 text-xs font-bold">
           <button
             onClick={() => setIsLogin(true)}
             className={`flex-1 py-2 rounded-xl transition-colors ${
@@ -88,6 +95,56 @@ export const AuthPage: React.FC = () => {
           >
             Register
           </button>
+        </div>
+
+        {/* Direct Social Login: Google / Gmail & Facebook */}
+        <div className="space-y-2.5 mb-5">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-bold text-slate-700">
+              {isLogin ? 'Direct Social Sign In:' : 'Fast 1-Click Registration:'}
+            </span>
+            <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>Instant Access</span>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Google / Gmail Button */}
+            <button
+              type="button"
+              id="google-login-btn"
+              onClick={() => setSocialModalProvider('google')}
+              className="w-full py-2.5 px-3 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-2xl border border-slate-300 hover:border-blue-400 flex items-center justify-center gap-2.5 shadow-xs hover:shadow-sm transition-all cursor-pointer group"
+            >
+              <GoogleLogo className="w-4 h-4 shrink-0" />
+              <span className="truncate">Google (Gmail)</span>
+            </button>
+
+            {/* Facebook Button */}
+            <button
+              type="button"
+              id="facebook-login-btn"
+              onClick={() => setSocialModalProvider('facebook')}
+              className="w-full py-2.5 px-3 bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2.5 shadow-xs hover:shadow-sm transition-all cursor-pointer group"
+            >
+              <FacebookLogo className="w-4 h-4 shrink-0 fill-white" />
+              <span className="truncate">Facebook</span>
+            </button>
+          </div>
+
+          {/* Quick Bengali Subtitle/Hint */}
+          <p className="text-[11px] text-center text-slate-500 font-medium">
+            জিমেইল বা ফেসবুক দিয়ে সরাসরি ১-ক্লিকে লগইন করুন
+          </p>
+
+          <div className="relative my-4 flex items-center justify-center">
+            <div className="border-t border-slate-200 w-full"></div>
+            <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+              or use email & password
+            </span>
+            <div className="border-t border-slate-200 w-full"></div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -212,6 +269,13 @@ export const AuthPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* Interactive Social Login Dialog (Google & Facebook) */}
+      <SocialLoginModal
+        provider={socialModalProvider}
+        onClose={() => setSocialModalProvider(null)}
+        onSuccess={handleSocialSuccess}
+      />
     </div>
   );
 };

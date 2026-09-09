@@ -15,6 +15,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenMenu }) 
   // Suppress generic bottom navigation on checkout, order success, and product detail pages
   if (
     location.pathname === '/checkout' ||
+    location.pathname.startsWith('/thank-you') ||
     location.pathname.startsWith('/order-success') ||
     location.pathname.startsWith('/product/') ||
     (location.pathname.startsWith('/products/') && location.pathname !== '/products/')

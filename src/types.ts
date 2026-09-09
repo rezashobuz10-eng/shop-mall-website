@@ -65,6 +65,7 @@ export interface User {
   sellerId?: string;
   addresses: Address[];
   joinedDate: string;
+  authProvider?: 'email' | 'google' | 'facebook';
 }
 
 export interface Address {
@@ -147,6 +148,7 @@ export interface Order {
   paymentMode?: 'manual_trxid' | 'online_gateway' | 'cod';
   sellerId?: string;
   status: OrderStatus | string;
+  cancelReason?: string;
   timeline?: {
     status: OrderStatus | string;
     timestamp: string;
@@ -167,6 +169,7 @@ export interface Review {
   comment: string;
   verifiedPurchase: boolean;
   helpfulCount: number;
+  images?: string[];
 }
 
 export interface Coupon {

@@ -18,12 +18,20 @@ import {
   Scale,
   Bell,
   Award,
-  Sparkles
+  Sparkles,
+  Camera,
+  UploadCloud,
+  X,
+  MessageCircle,
+  Zap,
+  Image as ImageIcon,
+  Maximize2
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { RatingStars } from '../components/common/RatingStars';
 import { ProductCard } from '../components/common/ProductCard';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { FastOrderModal } from '../components/product/FastOrderModal';
 import { sanitizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
 import { soundEngine } from '../utils/audioFeedback';
 
@@ -79,6 +87,11 @@ const ProductDetailContent: React.FC = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
+  const [previewImageModal, setPreviewImageModal] = useState<string | null>(null);
+
+  // Fast order modal state (1-Click Direct Order)
+  const [showFastOrderModal, setShowFastOrderModal] = useState(false);
 
   // Chat with seller modal
   const [showChatModal, setShowChatModal] = useState(false);
@@ -182,10 +195,51 @@ const ProductDetailContent: React.FC = () => {
 
   const handleBuyNow = () => {
     soundEngine.playAddToCart();
-    if (typeof addToCart === 'function') {
-      addToCart(product, quantity, selectedColor || undefined, selectedSize || undefined);
+    setShowFastOrderModal(true);
+  };
+
+  const handleWhatsAppOrder = () => {
+    const whatsappNumber = '8801712345678';
+    const currentUrl = window.location.href;
+    const msg = `আসসালামু আলাইকুম ShopNexa,\nআমি এই পণ্যটি অর্ডার করতে আগ্রহী:\n\n📦 পণ্য: ${product.title}\n💰 মূল্য: ৳${product.price.toLocaleString()}\n${selectedColor ? `🎨 কালার: ${selectedColor}\n` : ''}${selectedSize ? `📏 সাইজ: ${selectedSize}\n` : ''}🔢 পরিমাণ: ${quantity}টি\n🔗 লিঙ্ক: ${currentUrl}\n\nঅনুগ্রহ করে ডেলিভারি ও অর্ডার কনফার্মেশনের বিস্তারিত জানান।`;
+    const encodedUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`;
+    window.open(encodedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 4 - reviewPhotos.length;
+    if (remainingSlots <= 0) {
+      if (typeof addToast === 'function') {
+        addToast({
+          type: 'warning',
+          title: 'Photo Limit',
+          message: 'You can upload up to 4 photos per review.'
+        });
+      }
+      return;
     }
-    navigate('/checkout');
+
+    const filesToProcess = (Array.from(files) as File[]).slice(0, remainingSlots);
+    filesToProcess.forEach((file: File) => {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const result = uploadEvent.target?.result as string;
+        if (result) {
+          setReviewPhotos((prev) => [...prev, result]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // reset input value so user can re-upload if needed
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = (indexToRemove: number) => {
+    setReviewPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleReviewSubmit = (e: React.FormEvent) => {
@@ -207,11 +261,21 @@ const ProductDetailContent: React.FC = () => {
         userId: currentUser?.id || 'guest',
         userName: currentUser?.name || 'Verified Buyer',
         rating: reviewRating,
-        comment: reviewComment.trim()
+        comment: reviewComment.trim(),
+        verifiedPurchase: true,
+        images: reviewPhotos.length > 0 ? reviewPhotos : undefined
       });
+      if (typeof addToast === 'function') {
+        addToast({
+          type: 'success',
+          title: 'রিভিউ যোগ হয়েছে! ⭐',
+          message: 'আপনার বাস্তব অভিজ্ঞতা ও ছবি সফলভাবে শেয়ার করা হয়েছে।'
+        });
+      }
     }
 
     setReviewComment('');
+    setReviewPhotos([]);
     setShowReviewForm(false);
   };
 
@@ -464,23 +528,34 @@ const ProductDetailContent: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-slate-100">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <button
                     type="button"
                     onClick={handleAddToCart}
                     className="w-full py-3.5 px-6 rounded-2xl bg-orange-50 hover:bg-orange-100 text-orange-600 font-black text-sm flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
                   >
                     <ShoppingBag className="w-5 h-5" />
-                    Add to Cart
+                    কার্টে যোগ করুন (Add to Cart)
                   </button>
                   <button
                     type="button"
                     onClick={handleBuyNow}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black text-sm shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 transition-all hover:scale-102 cursor-pointer"
+                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-black text-sm shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 transition-all hover:scale-102 cursor-pointer"
                   >
-                    Buy Now
+                    <Zap className="w-4 h-4 fill-amber-300 text-amber-200" />
+                    সরাসরি অর্ডার করুন (Buy Now)
                   </button>
                 </div>
+
+                {/* WhatsApp Direct Order Button */}
+                <button
+                  type="button"
+                  onClick={handleWhatsAppOrder}
+                  className="w-full mb-4 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/20 hover:scale-[1.01] cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4 fill-white" />
+                  <span>হোয়াটসঅ্যাপে অর্ডার করুন (Order via WhatsApp)</span>
+                </button>
 
                 {/* Secondary Fast Tools: Compare & Price Drop Alert */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
@@ -815,14 +890,51 @@ const ProductDetailContent: React.FC = () => {
                         onClick={() => setShowReviewForm(!showReviewForm)}
                         className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
                       >
-                        {showReviewForm ? 'Cancel Review' : 'Write a Review'}
+                        {showReviewForm ? 'Cancel Review' : 'Write a Review with Photos'}
                       </button>
                     </div>
 
+                    {/* Customer Photos Gallery Strip */}
+                    {(() => {
+                      const allPhotos = (productReviews || [])
+                        .flatMap((r) => r.images || [])
+                        .filter(Boolean);
+                      if (allPhotos.length === 0) return null;
+                      return (
+                        <div className="mb-6 p-4 rounded-2xl bg-amber-50/50 border border-amber-200/70">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <Camera className="w-4 h-4 text-amber-600" />
+                              <span>বাস্তব গ্রাহক ফটো গ্যালারি (Customer Photos - {allPhotos.length}টি)</span>
+                            </h4>
+                            <span className="text-[10px] text-amber-800 font-bold">ক্লিক করে বড় করে দেখুন</span>
+                          </div>
+                          <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+                            {allPhotos.map((img, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => setPreviewImageModal(img)}
+                                className="group relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border border-slate-200 bg-white shrink-0 cursor-pointer shadow-2xs hover:shadow-md transition-all"
+                              >
+                                <img
+                                  src={img}
+                                  alt={`Customer Photo ${idx + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/30 flex items-center justify-center transition-colors">
+                                  <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Write Review Form */}
                     {showReviewForm && (
-                      <form onSubmit={handleReviewSubmit} className="p-4 rounded-2xl border border-orange-200 bg-orange-50/40 mb-6 space-y-3">
-                        <h4 className="text-xs font-bold text-slate-900">Your Experience</h4>
+                      <form onSubmit={handleReviewSubmit} className="p-4 rounded-2xl border border-orange-200 bg-orange-50/40 mb-6 space-y-3.5">
+                        <h4 className="text-xs font-bold text-slate-900">Your Experience & Rating</h4>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-slate-600">Rating:</span>
                           <div className="flex gap-1 text-amber-400">
@@ -855,11 +967,46 @@ const ProductDetailContent: React.FC = () => {
                           />
                         </div>
 
+                        {/* Customer Photo Upload Field */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                            বাস্তব পণ্যের ছবি যোগ করুন (Photo Upload - সর্বোচ্চ ৪টি):
+                          </label>
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            {reviewPhotos.map((photo, pIdx) => (
+                              <div key={pIdx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-white shadow-xs">
+                                <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePhoto(pIdx)}
+                                  className="absolute top-1 right-1 w-4 h-4 rounded-full bg-slate-900/80 text-white flex items-center justify-center text-[10px] hover:bg-rose-600 transition-colors cursor-pointer"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            ))}
+
+                            {reviewPhotos.length < 4 && (
+                              <label className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 hover:border-orange-500 bg-white flex flex-col items-center justify-center cursor-pointer transition-colors text-slate-400 hover:text-orange-600">
+                                <Camera className="w-4 h-4" />
+                                <span className="text-[9px] font-bold mt-1">ছবি যোগ</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  onChange={handlePhotoUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+
                         <button
                           type="submit"
-                          className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer"
+                          className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-xs"
                         >
-                          Submit Review
+                          Submit Review with Photos
                         </button>
                       </form>
                     )}
@@ -884,6 +1031,25 @@ const ProductDetailContent: React.FC = () => {
 
                             <RatingStars rating={rev.rating || 5} size="xs" className="mb-2" />
                             <p className="text-xs text-slate-700 leading-relaxed mb-2">{rev.comment}</p>
+
+                            {/* Attached Customer Review Photos */}
+                            {rev.images && rev.images.length > 0 && (
+                              <div className="flex gap-2 my-2.5 flex-wrap">
+                                {rev.images.map((photo, photoIdx) => (
+                                  <button
+                                    key={photoIdx}
+                                    type="button"
+                                    onClick={() => setPreviewImageModal(photo)}
+                                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-slate-200 hover:border-orange-400 bg-white shrink-0 cursor-pointer shadow-2xs hover:scale-102 transition-all relative group"
+                                  >
+                                    <img src={photo} alt="Customer review photo" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/20 flex items-center justify-center transition-colors">
+                                      <Maximize2 className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
 
                             <button
                               type="button"
@@ -963,6 +1129,47 @@ const ProductDetailContent: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Fast 1-Click Order Modal */}
+      {showFastOrderModal && product && (
+        <FastOrderModal
+          isOpen={showFastOrderModal}
+          onClose={() => setShowFastOrderModal(false)}
+          product={product}
+          initialColor={selectedColor}
+          initialSize={selectedSize}
+          initialQuantity={quantity}
+        />
+      )}
+
+      {/* Customer Review Image Lightbox Modal */}
+      {previewImageModal && (
+        <div
+          onClick={() => setPreviewImageModal(null)}
+          className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
+        >
+          <div
+            className="relative max-w-2xl max-h-[85vh] bg-slate-950 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewImageModal(null)}
+              className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={previewImageModal}
+              alt="Customer Review Expanded"
+              className="max-h-[80vh] w-auto mx-auto object-contain"
+            />
+            <div className="bg-slate-900/90 px-4 py-2 text-center text-xs text-slate-300">
+              বাস্তব ক্রেতার রিভিউ ছবি (Verified Customer Photo)
+            </div>
           </div>
         </div>
       )}

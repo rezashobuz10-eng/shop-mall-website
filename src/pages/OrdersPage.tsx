@@ -8,12 +8,16 @@ import {
   ChevronRight,
   ExternalLink,
   Ban,
-  ShoppingBag
+  ShoppingBag,
+  Edit3,
+  MapPin,
+  Clock
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { EmptyState } from '../components/common/EmptyState';
 import { OrderTrackingModal } from '../components/common/OrderTrackingModal';
 import { TaxInvoiceModal } from '../components/common/TaxInvoiceModal';
+import { OrderEditModal } from '../components/common/OrderEditModal';
 import { Order } from '../types';
 import { sanitizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
 import { extractPaymentDetails } from '../utils/paymentValidation';
@@ -24,6 +28,7 @@ export const OrdersPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -205,6 +210,49 @@ export const OrdersPage: React.FC = () => {
                   })}
                 </div>
 
+                {/* Delivery Address & Status Notice */}
+                <div className="my-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-slate-700 min-w-0">
+                    <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                    <span className="font-bold text-slate-900">{order.customerName || 'গ্রাহক'}:</span>
+                    <span className="text-slate-600 truncate max-w-md">
+                      {typeof order.shippingAddress === 'string'
+                        ? order.shippingAddress
+                        : `${(order.shippingAddress as Record<string, string>)?.fullAddress || ''}, ${(order.shippingAddress as Record<string, string>)?.district || ''}, ${(order.shippingAddress as Record<string, string>)?.division || ''}`}
+                    </span>
+                    {order.customerPhone && (
+                      <span className="text-slate-400 font-mono text-[11px] shrink-0">
+                        • {order.customerPhone}
+                      </span>
+                    )}
+                  </div>
+
+                  {order.status !== 'Shipped' &&
+                    order.status !== 'Out for Delivery' &&
+                    order.status !== 'Delivered' &&
+                    order.status !== 'Cancelled' && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingOrder(order)}
+                        className="text-orange-600 hover:text-orange-700 font-bold flex items-center gap-1 text-[11px] cursor-pointer hover:underline"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>ঠিকানা বা অর্ডার পরিবর্তন</span>
+                      </button>
+                    )}
+                </div>
+
+                {/* Cancelled Reason Notice if cancelled */}
+                {order.status.toLowerCase() === 'cancelled' && (
+                  <div className="my-2.5 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2">
+                    <Ban className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>
+                      <strong className="font-bold">অর্ডার বাতিল হয়েছে:</strong>{' '}
+                      {order.cancelReason || 'গ্রাহকের অনুরোধে অর্ডারটি বাতিল করা হয়েছে।'}
+                    </span>
+                  </div>
+                )}
+
                 {/* Bottom Total & Actions */}
                 <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
@@ -218,7 +266,7 @@ export const OrdersPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setTrackingOrder(order as unknown as Order)}
@@ -228,14 +276,19 @@ export const OrdersPage: React.FC = () => {
                       Track Shipment
                     </button>
 
-                    {order.status === 'pending' && (
-                      <button
-                        onClick={() => cancelOrder(order.id)}
-                        className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold transition-colors cursor-pointer"
-                      >
-                        Cancel Order
-                      </button>
-                    )}
+                    {order.status !== 'Shipped' &&
+                      order.status !== 'Out for Delivery' &&
+                      order.status !== 'Delivered' &&
+                      order.status !== 'Cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingOrder(order)}
+                          className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>পরিবর্তন / বাতিল</span>
+                        </button>
+                      )}
 
                     <button
                       onClick={() => handleReorder(order)}
@@ -282,6 +335,15 @@ export const OrdersPage: React.FC = () => {
             isOpen={!!invoiceOrder}
             onClose={() => setInvoiceOrder(null)}
             order={invoiceOrder}
+          />
+        )}
+
+        {/* Order Edit / Cancel Window Modal */}
+        {editingOrder && (
+          <OrderEditModal
+            isOpen={!!editingOrder}
+            onClose={() => setEditingOrder(null)}
+            order={editingOrder}
           />
         )}
       </div>

@@ -80,7 +80,8 @@ interface StoreContextType {
   createOrder: (orderData: Partial<Order>) => Order;
   updateOrderStatus: (orderId: string, status: OrderStatus, note?: string) => void;
   getOrderById: (orderId: string) => Order | undefined;
-  cancelOrder: (orderId: string) => void;
+  cancelOrder: (orderId: string, reason?: string) => void;
+  updateOrderAddress: (orderId: string, updatedAddress: Partial<Address> & { phone?: string; fullName?: string; fullAddress?: string }) => void;
 
   // Reviews
   reviews: Review[];
@@ -92,6 +93,8 @@ interface StoreContextType {
   currentUser: User | null;
   users: User[];
   login: (emailOrPhone: string, password?: string, role?: 'customer' | 'seller' | 'admin') => boolean;
+  loginWithGoogle: (customEmail?: string, customName?: string) => Promise<boolean>;
+  loginWithFacebook: (customName?: string, customEmail?: string) => Promise<boolean>;
   register: (data: { name: string; email: string; phone: string; password?: string }) => boolean;
   logout: () => void;
   switchUserRole: (role: 'customer' | 'seller' | 'admin') => void;
@@ -218,8 +221,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // State initialization with localStorage
   const [products, setProducts] = useState<Product[]>(() => {
-    const raw = loadFromStorage('sn_products', MOCK_PRODUCTS);
-    return raw.map((p) => {
+    const raw = loadFromStorage<Product[]>('sn_products', MOCK_PRODUCTS);
+    // Ensure newly added mock products are seamlessly included even if localStorage had older cached items
+    const existingIds = new Set(raw.map((p) => p.id));
+    const merged = [...raw];
+    for (const mockP of MOCK_PRODUCTS) {
+      if (!existingIds.has(mockP.id)) {
+        merged.push(mockP);
+        existingIds.add(mockP.id);
+      }
+    }
+    return merged.map((p) => {
       const sanitizedImages = (Array.isArray(p.images) && p.images.length > 0 ? p.images : [FALLBACK_PRODUCT_IMAGE]).map((img) =>
         sanitizeImageUrl(img, p.category)
       );
@@ -816,30 +828,78 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  const cancelOrder = (orderId: string) => {
-    setOrders((prev) =>
-      prev.map((ord) =>
+  const cancelOrder = (orderId: string, reason?: string) => {
+    setOrders((prev) => {
+      const updated = prev.map((ord) =>
         ord.id === orderId
           ? {
               ...ord,
               status: 'Cancelled',
+              cancelReason: reason || 'Cancelled by customer',
               timeline: [
                 ...ord.timeline,
                 {
                   status: 'Cancelled',
                   timestamp: 'Just now',
-                  description: 'Order cancelled by user/admin',
+                  description: reason ? `Cancelled: ${reason}` : 'Order cancelled by customer',
                   completed: true
                 }
               ]
             }
           : ord
-      )
-    );
+      );
+      try {
+        localStorage.setItem('sn_orders', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     addToast({
       type: 'warning',
       title: 'Order Cancelled',
-      message: 'Order has been cancelled.'
+      message: reason ? `Reason: ${reason}` : 'Your order has been cancelled.'
+    });
+  };
+
+  const updateOrderAddress = (
+    orderId: string,
+    updatedAddress: Partial<Address> & { phone?: string; fullName?: string; fullAddress?: string }
+  ) => {
+    setOrders((prev) => {
+      const updated = prev.map((ord) => {
+        if (ord.id !== orderId) return ord;
+        const prevAddr = ord.shippingAddress || {};
+        const newShippingAddress = {
+          ...prevAddr,
+          ...updatedAddress,
+          fullName: updatedAddress.fullName || ord.customerName || '',
+          phone: updatedAddress.phone || ord.customerPhone || '',
+          fullAddress: updatedAddress.fullAddress || (prevAddr as { fullAddress?: string })?.fullAddress || ''
+        };
+        return {
+          ...ord,
+          customerName: updatedAddress.fullName || ord.customerName,
+          customerPhone: updatedAddress.phone || ord.customerPhone,
+          shippingAddress: newShippingAddress,
+          timeline: [
+            ...ord.timeline,
+            {
+              status: ord.status,
+              timestamp: 'Just now',
+              description: 'Delivery address and contact info updated by customer',
+              completed: true
+            }
+          ]
+        };
+      });
+      try {
+        localStorage.setItem('sn_orders', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    addToast({
+      type: 'success',
+      title: 'Address Updated',
+      message: 'Delivery address and phone number updated successfully.'
     });
   };
 
@@ -931,6 +991,92 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type: 'success',
       title: `Welcome to ShopNexa!`,
       message: `Signed in as ${newUser.name}.`
+    });
+    return true;
+  };
+
+  const loginWithGoogle = async (customEmail?: string, customName?: string): Promise<boolean> => {
+    const email = (customEmail || 'rezashobuz10@gmail.com').trim().toLowerCase();
+    const name = customName || (email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()));
+
+    const existing = users.find((u) => u.email.toLowerCase() === email);
+    if (existing) {
+      const updated: User = {
+        ...existing,
+        authProvider: 'google',
+        avatar: existing.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'
+      };
+      setCurrentUser(updated);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      addToast({
+        type: 'success',
+        title: 'Google Sign-In Successful!',
+        message: `Welcome back, ${updated.name}! Connected via Gmail (${email}).`
+      });
+      return true;
+    }
+
+    const newUser: User = {
+      id: 'usr-g-' + Date.now(),
+      name,
+      email,
+      phone: '01700000000',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+      role: 'customer',
+      joinedDate: 'Today',
+      addresses: [],
+      authProvider: 'google'
+    };
+
+    setUsers((prev) => [...prev, newUser]);
+    setCurrentUser(newUser);
+    addToast({
+      type: 'success',
+      title: 'Google Sign-In Successful!',
+      message: `Welcome to ShopNexa, ${newUser.name}! Signed in with Gmail.`
+    });
+    return true;
+  };
+
+  const loginWithFacebook = async (customName?: string, customEmail?: string): Promise<boolean> => {
+    const name = (customName || 'Reza Shobuz').trim();
+    const email = (customEmail || 'rezashobuz.fb@gmail.com').trim().toLowerCase();
+
+    const existing = users.find((u) => u.email.toLowerCase() === email);
+    if (existing) {
+      const updated: User = {
+        ...existing,
+        authProvider: 'facebook',
+        avatar: existing.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80'
+      };
+      setCurrentUser(updated);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      addToast({
+        type: 'success',
+        title: 'Facebook Login Successful!',
+        message: `Welcome back, ${updated.name}! Connected via Facebook.`
+      });
+      return true;
+    }
+
+    const newUser: User = {
+      id: 'usr-fb-' + Date.now(),
+      name,
+      email,
+      phone: '01800000000',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+      role: 'customer',
+      joinedDate: 'Today',
+      addresses: [],
+      authProvider: 'facebook'
+    };
+
+    setUsers((prev) => [...prev, newUser]);
+    setCurrentUser(newUser);
+    addToast({
+      type: 'success',
+      title: 'Facebook Login Successful!',
+      message: `Welcome to ShopNexa, ${newUser.name}! Signed in with Facebook.`
     });
     return true;
   };
@@ -1217,6 +1363,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateOrderStatus,
         getOrderById,
         cancelOrder,
+        updateOrderAddress,
         reviews,
         addReview,
         markReviewHelpful,
@@ -1224,6 +1371,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentUser,
         users,
         login,
+        loginWithGoogle,
+        loginWithFacebook,
         register,
         logout,
         switchUserRole,

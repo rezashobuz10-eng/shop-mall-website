@@ -12,28 +12,69 @@ import {
   ShieldCheck,
   Edit2,
   Store,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { GoogleLogo, FacebookLogo, SocialLoginModal } from '../components/auth/SocialLoginModal';
 
 export const AccountPage: React.FC = () => {
   const { currentUser, logout, orders, wishlist, switchUserRole } = useStore();
 
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'addresses'>('profile');
+  const [socialModalProvider, setSocialModalProvider] = useState<'google' | 'facebook' | null>(null);
 
   if (!currentUser) {
     return (
       <div className="max-w-md mx-auto px-4 py-20 text-center">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Please Sign In</h2>
-        <p className="text-slate-500 text-xs mb-6">
-          Sign in or choose a demo role to view your profile dashboard.
+        <div className="w-16 h-16 rounded-3xl bg-orange-100 text-orange-600 flex items-center justify-center mx-auto mb-4">
+          <User className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Sign In to Your Account</h2>
+        <p className="text-slate-500 text-xs mb-6 max-w-xs mx-auto">
+          Sign in directly with your Gmail or Facebook account to view your orders, addresses and profile.
         </p>
+
+        {/* 1-Click Social Sign In Buttons */}
+        <div className="space-y-2.5 mb-6">
+          <button
+            onClick={() => setSocialModalProvider('google')}
+            className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-2xl border border-slate-300 hover:border-blue-400 flex items-center justify-center gap-2.5 shadow-xs transition-all cursor-pointer"
+          >
+            <GoogleLogo className="w-4 h-4 shrink-0" />
+            <span>Continue with Google (Gmail)</span>
+          </button>
+
+          <button
+            onClick={() => setSocialModalProvider('facebook')}
+            className="w-full py-2.5 px-4 bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2.5 shadow-xs transition-all cursor-pointer"
+          >
+            <FacebookLogo className="w-4 h-4 shrink-0 fill-white" />
+            <span>Continue with Facebook</span>
+          </button>
+        </div>
+
+        <div className="relative my-4 flex items-center justify-center">
+          <div className="border-t border-slate-200 w-full"></div>
+          <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+            or traditional login
+          </span>
+          <div className="border-t border-slate-200 w-full"></div>
+        </div>
+
         <Link
           to="/login"
-          className="inline-flex px-6 py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs"
+          className="inline-flex px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-600/20"
         >
-          Go to Sign In
+          Go to Sign In Page
         </Link>
+
+        {/* Social Login Modal */}
+        <SocialLoginModal
+          provider={socialModalProvider}
+          onClose={() => setSocialModalProvider(null)}
+          onSuccess={() => setSocialModalProvider(null)}
+        />
       </div>
     );
   }
@@ -63,8 +104,22 @@ export const AccountPage: React.FC = () => {
                   {currentUser.name}
                 </h2>
                 <p className="text-xs text-slate-400 truncate">{currentUser.email}</p>
-                <div className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-orange-100 text-orange-700">
-                  {currentUser.role} Account
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-orange-100 text-orange-700">
+                    {currentUser.role} Account
+                  </span>
+                  {currentUser.authProvider === 'google' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      <GoogleLogo className="w-3 h-3" />
+                      <span>Google (Gmail)</span>
+                    </span>
+                  )}
+                  {currentUser.authProvider === 'facebook' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/20">
+                      <FacebookLogo className="w-3 h-3 fill-[#1877F2]" />
+                      <span>Facebook</span>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,6 +323,12 @@ export const AccountPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <SocialLoginModal
+        provider={socialModalProvider}
+        onClose={() => setSocialModalProvider(null)}
+        onSuccess={() => setSocialModalProvider(null)}
+      />
     </div>
   );
 };

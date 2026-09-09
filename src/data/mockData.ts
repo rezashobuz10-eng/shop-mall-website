@@ -1,4 +1,5 @@
 import { Product, Category, Seller, Coupon, Banner, Review, User, Order } from '../types';
+import { ADDITIONAL_PRODUCTS } from './additionalProducts';
 
 export const MOCK_CATEGORIES: Category[] = [
   {
@@ -1673,7 +1674,8 @@ export const MOCK_PRODUCTS: Product[] = [
     },
     warranty: '1 Year Replacement Warranty',
     deliveryDays: 2
-  }
+  },
+  ...ADDITIONAL_PRODUCTS
 ];
 
 export const MOCK_BANNERS: Banner[] = [
@@ -1777,7 +1779,11 @@ export const MOCK_REVIEWS: Review[] = [
     date: '3 days ago',
     comment: 'Alhamdulillah received 100% authentic phone in intact packaging within 2 days in Mirpur! Camera quality is mind-blowing, 200MP photos are super sharp. Thanks ShopNexa!',
     verifiedPurchase: true,
-    helpfulCount: 24
+    helpfulCount: 24,
+    images: [
+      'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80'
+    ]
   },
   {
     id: 'rev-2',
@@ -1797,9 +1803,12 @@ export const MOCK_REVIEWS: Review[] = [
     userAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&q=80',
     rating: 5,
     date: '5 days ago',
-    comment: 'Sound quality and bass is punchy! Using it daily during gym workouts. Connection with my phone never drops.',
+    comment: 'Sound quality and bass is punchy! Using it daily during gym workouts. Connection with my phone never drops. Unboxing photo attached.',
     verifiedPurchase: true,
-    helpfulCount: 19
+    helpfulCount: 19,
+    images: [
+      'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=600&q=80'
+    ]
   },
   {
     id: 'rev-4',
@@ -1810,7 +1819,10 @@ export const MOCK_REVIEWS: Review[] = [
     date: '2 weeks ago',
     comment: 'Cotton fabric is pure combed quality and very comfortable for hot Dhaka weather. Embroidery work on the collar looks very premium.',
     verifiedPurchase: true,
-    helpfulCount: 31
+    helpfulCount: 31,
+    images: [
+      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80'
+    ]
   },
   {
     id: 'rev-5',
@@ -1821,7 +1833,10 @@ export const MOCK_REVIEWS: Review[] = [
     date: '4 days ago',
     comment: 'Authentic Apex shoes. Fitting is 100% accurate, memory foam insole makes standing in office super comfortable.',
     verifiedPurchase: true,
-    helpfulCount: 12
+    helpfulCount: 12,
+    images: [
+      'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=600&q=80'
+    ]
   }
 ];
 

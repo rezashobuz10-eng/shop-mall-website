@@ -52,6 +52,7 @@ export const CheckoutPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: currentUser?.name || 'Tanzim Hasan',
     phone: currentUser?.phone || '01712345678',
+    email: currentUser?.email || 'customer@gmail.com',
     division: 'Dhaka',
     city: 'Dhaka - North',
     thana: 'Gulshan',
@@ -169,6 +170,7 @@ export const CheckoutPage: React.FC = () => {
         : paymentMethod.toUpperCase();
 
     const created = createOrder({
+      customerEmail: formData.email.trim().toLowerCase(),
       items: orderItems,
       subtotal: cartTotal,
       shippingFee: shippingFee,
@@ -297,6 +299,28 @@ export const CheckoutPage: React.FC = () => {
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-orange-500"
                     placeholder="e.g. 01712345678"
                   />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>
+                      Customer Gmail / ইমেইল ঠিকানা <span className="text-rose-500">*</span>
+                    </span>
+                    <span className="text-[10px] text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200 flex items-center gap-1">
+                      <span>ShopNexa কনফার্মেশন কোড এই জিমেইলে যাবে</span>
+                    </span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-orange-500 font-medium"
+                    placeholder="e.g. customer@gmail.com"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    অর্ডার কনফার্মেশনের সাথে সাথে ShopNexa-এর অফিসিয়াল ৬-ডিজিট সিকিউরিটি কোড এই জিমেইলে স্বয়ংক্রিয়ভাবে পাঠানো হবে।
+                  </p>
                 </div>
 
                 <div>

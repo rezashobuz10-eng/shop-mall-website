@@ -15,19 +15,45 @@ import {
   Phone,
   Plus,
   Send,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Check,
+  Package
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { FirestoreCustomer, saveCustomerToFirestore, fetchCustomersFromFirestore } from '../../lib/firebase';
+import {
+  FirestoreCustomer,
+  saveCustomerToFirestore,
+  fetchCustomersFromFirestore,
+  fetchOrderNotificationsFromFirestore
+} from '../../lib/firebase';
+import { OrderNotification } from '../../types';
 import { GoogleLogo } from '../auth/SocialLoginModal';
 
 export const CustomerDatabaseManager: React.FC = () => {
-  const { users, firestoreCustomers, refreshFirestoreCustomers, addToast, sendEmailAuthCode } = useStore();
+  const {
+    users,
+    orders,
+    firestoreCustomers,
+    refreshFirestoreCustomers,
+    addToast,
+    sendEmailAuthCode
+  } = useStore();
+  const [subTab, setSubTab] = useState<'customers' | 'order_codes'>('customers');
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [isSendingCode, setIsSendingCode] = useState(false);
+  const [orderNotifications, setOrderNotifications] = useState<OrderNotification[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Load order notifications on mount
+  useEffect(() => {
+    fetchOrderNotificationsFromFirestore().then((notifs) => {
+      setOrderNotifications(notifs);
+    });
+  }, []);
 
   // New Customer Form State
   const [newEmail, setNewEmail] = useState('');
@@ -35,6 +61,71 @@ export const CustomerDatabaseManager: React.FC = () => {
   const [newPhone, setNewPhone] = useState('');
   const [newRole, setNewRole] = useState<'customer' | 'seller' | 'admin'>('customer');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Combined order notifications: merge Firestore notifications and store orders
+  const combinedOrderCodes = React.useMemo(() => {
+    const map = new Map<string, {
+      orderId: string;
+      orderNumber: string;
+      confirmationCode: string;
+      customerEmail: string;
+      customerName: string;
+      customerPhone?: string;
+      total: number;
+      dispatchedAt: string;
+      status: string;
+      source: 'firestore' | 'app_store';
+    }>();
+
+    // From Firestore collection
+    orderNotifications.forEach((n) => {
+      if (n.orderId) {
+        map.set(n.orderId, {
+          orderId: n.orderId,
+          orderNumber: n.orderNumber || n.orderId,
+          confirmationCode: n.confirmationCode,
+          customerEmail: n.customerEmail,
+          customerName: n.customerName || 'Customer',
+          total: n.total || 0,
+          dispatchedAt: n.dispatchedAt,
+          status: n.status || 'sent',
+          source: 'firestore'
+        });
+      }
+    });
+
+    // From current store orders
+    orders.forEach((o) => {
+      const orderCode =
+        o.orderConfirmationCode ||
+        `SNX-${(o.orderNumber || o.id).replace(/[^0-9]/g, '').slice(-6) || '849201'}`;
+      const email =
+        o.customerEmail ||
+        o.emailSentTo ||
+        (o.shippingAddress as any)?.email ||
+        'customer@gmail.com';
+      const name = o.shippingAddress?.fullName || o.customerName || 'Customer';
+
+      if (!map.has(o.id)) {
+        map.set(o.id, {
+          orderId: o.id,
+          orderNumber: o.orderNumber || o.id,
+          confirmationCode: orderCode,
+          customerEmail: email,
+          customerName: name,
+          customerPhone: o.shippingAddress?.phone || o.customerPhone,
+          total: o.total,
+          dispatchedAt: o.createdAt || new Date().toISOString(),
+          status: 'sent',
+          source: o.emailNotificationSent ? 'firestore' : 'app_store'
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.dispatchedAt).getTime() - new Date(a.dispatchedAt).getTime()
+    );
+  }, [orderNotifications, orders]);
 
   // Merge store users and firestore customers for comprehensive view
   const combinedCustomers = React.useMemo(() => {
@@ -93,14 +184,34 @@ export const CustomerDatabaseManager: React.FC = () => {
     (c.phone && c.phone.includes(searchQuery))
   );
 
+  const filteredOrderCodes = combinedOrderCodes.filter((o) =>
+    o.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    o.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    o.confirmationCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    o.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    addToast({
+      type: 'info',
+      title: 'কপি করা হয়েছে',
+      message: `কোড ${code} ক্লিপবোর্ডে কপি করা হয়েছে।`
+    });
+    setTimeout(() => setCopiedCode(null), 2500);
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       await refreshFirestoreCustomers();
+      const updatedNotifs = await fetchOrderNotificationsFromFirestore();
+      setOrderNotifications(updatedNotifs);
       addToast({
         type: 'success',
         title: 'Database Synchronized',
-        message: 'Successfully refreshed customer records from Firestore.'
+        message: 'Successfully refreshed customer records & order codes from Firestore.'
       });
     } finally {
       setIsRefreshing(false);
@@ -276,13 +387,56 @@ export const CustomerDatabaseManager: React.FC = () => {
         </div>
       </div>
 
+      {/* View Switcher Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSubTab('customers')}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              subTab === 'customers'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Registered Customers & Gmails ({combinedCustomers.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab('order_codes')}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              subTab === 'order_codes'
+                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            <span>ShopNexa Order Gmail Codes ({combinedOrderCodes.length})</span>
+          </button>
+        </div>
+
+        <div className="text-xs text-slate-500 font-medium">
+          {subTab === 'customers' ? (
+            <span>Firestore: <strong className="font-mono text-slate-800">/customers</strong></span>
+          ) : (
+            <span>Firestore: <strong className="font-mono text-orange-600">/order_notifications</strong></span>
+          )}
+        </div>
+      </div>
+
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by Gmail, Name, or Phone..."
+            placeholder={
+              subTab === 'customers'
+                ? 'Search by Gmail, Name, or Phone...'
+                : 'Search by Gmail, Order ID, or Confirmation Code...'
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden transition-all shadow-2xs"
@@ -290,113 +444,221 @@ export const CustomerDatabaseManager: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 text-xs font-bold text-slate-500 self-end sm:self-auto">
-          <span>Showing {filteredCustomers.length} of {combinedCustomers.length} accounts</span>
+          {subTab === 'customers' ? (
+            <span>Showing {filteredCustomers.length} of {combinedCustomers.length} accounts</span>
+          ) : (
+            <span>Showing {filteredOrderCodes.length} of {combinedOrderCodes.length} order codes</span>
+          )}
         </div>
       </div>
 
-      {/* Customer Database Table */}
+      {/* Table: Customers or Dispatched Order Codes */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-3.5 px-4">Customer & Gmail</th>
-                <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Auth Method</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Database Source</th>
-                <th className="py-3.5 px-4">Registered Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {filteredCustomers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                    <p className="font-bold text-slate-600">No customers found</p>
-                    <p className="text-xs">Customers will appear here automatically when they login with their Gmail.</p>
-                  </td>
+          {subTab === 'customers' ? (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-3.5 px-4">Customer & Gmail</th>
+                  <th className="py-3.5 px-4">Role</th>
+                  <th className="py-3.5 px-4">Auth Method</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4">Database Source</th>
+                  <th className="py-3.5 px-4">Registered Date</th>
                 </tr>
-              ) : (
-                filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xs shrink-0 border border-blue-200">
-                          {customer.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-900 block">
-                            {customer.name}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-blue-600 font-mono text-[11px]">
-                            <Mail className="w-3 h-3 shrink-0" />
-                            <span>{customer.email}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                        customer.role === 'admin'
-                          ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                          : customer.role === 'seller'
-                          ? 'bg-orange-100 text-orange-700 border border-orange-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}>
-                        {customer.role}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      {customer.authMethod === 'google' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold border border-blue-200/60 text-[10px]">
-                          <GoogleLogo className="w-3 h-3 shrink-0" />
-                          <span>Google Sign-In</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200/60 text-[10px]">
-                          <Key className="w-3 h-3 shrink-0 text-emerald-600" />
-                          <span>6-Digit Email Code</span>
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-[11px]">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Verified</span>
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4">
-                      {customer.source === 'firestore' ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-                          <Database className="w-2.5 h-2.5" />
-                          <span>Firestore Cloud</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                          <span>Local Cache</span>
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4 text-slate-500 font-medium text-[11px]">
-                      {customer.createdAt.includes('T')
-                        ? new Date(customer.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })
-                        : customer.createdAt}
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-400">
+                      <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                      <p className="font-bold text-slate-600">No customers found</p>
+                      <p className="text-xs">Customers will appear here automatically when they login with their Gmail.</p>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <tr key={customer.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xs shrink-0 border border-blue-200">
+                            {customer.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 block">
+                              {customer.name}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-blue-600 font-mono text-[11px]">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              <span>{customer.email}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                          customer.role === 'admin'
+                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                            : customer.role === 'seller'
+                            ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}>
+                          {customer.role}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4">
+                        {customer.authMethod === 'google' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold border border-blue-200/60 text-[10px]">
+                            <GoogleLogo className="w-3 h-3 shrink-0" />
+                            <span>Google Sign-In</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200/60 text-[10px]">
+                            <Key className="w-3 h-3 shrink-0 text-emerald-600" />
+                            <span>6-Digit Email Code</span>
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-[11px]">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Verified</span>
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4">
+                        {customer.source === 'firestore' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                            <Database className="w-2.5 h-2.5" />
+                            <span>Firestore Cloud</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                            <span>Local Cache</span>
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 text-slate-500 font-medium text-[11px]">
+                        {customer.createdAt.includes('T')
+                          ? new Date(customer.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          : customer.createdAt}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-3.5 px-4">Customer & Gmail</th>
+                  <th className="py-3.5 px-4">ShopNexa Order Code</th>
+                  <th className="py-3.5 px-4">Order Total</th>
+                  <th className="py-3.5 px-4">Dispatch Status</th>
+                  <th className="py-3.5 px-4">Date & Time</th>
+                  <th className="py-3.5 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {filteredOrderCodes.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-400">
+                      <Mail className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                      <p className="font-bold text-slate-600">No order confirmation codes recorded yet</p>
+                      <p className="text-xs">
+                        When customers place orders, official 6-digit confirmation codes are generated on behalf of ShopNexa and recorded here.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrderCodes.map((item) => (
+                    <tr key={item.orderId} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-black text-xs shrink-0 border border-orange-200">
+                            {item.customerName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 block">
+                              {item.customerName}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-orange-600 font-mono text-[11px]">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              <span>{item.customerEmail}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-slate-900 text-xs px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                            {item.confirmationCode}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCode(item.confirmationCode)}
+                            className="p-1 hover:text-orange-600 text-slate-400 cursor-pointer transition-colors"
+                            title="Copy code"
+                          >
+                            {copiedCode === item.confirmationCode ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
+                          Order #{item.orderNumber}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 font-bold text-slate-900">
+                        ৳{item.total.toLocaleString()}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Delivered to Gmail</span>
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 text-slate-500 font-medium text-[11px]">
+                        {item.dispatchedAt.includes('T')
+                          ? new Date(item.dispatchedAt).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : item.dispatchedAt}
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCode(item.confirmationCode)}
+                          className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-[10px] border border-orange-200 transition-colors cursor-pointer"
+                        >
+                          Copy Code
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

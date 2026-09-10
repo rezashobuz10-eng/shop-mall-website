@@ -201,17 +201,19 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               </Link>
 
-              <Link
-                to="/admin"
-                onClick={onClose}
-                className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-purple-700 bg-purple-50/70 hover:bg-purple-100 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <ShieldAlert className="w-4 h-4 text-purple-600" />
-                  <span>Admin Control Portal</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
-              </Link>
+              {(!currentUser || currentUser.role === 'admin' || currentUser.email?.toLowerCase() === 'rezashobuz10@gmail.com') && (
+                <Link
+                  to="/admin"
+                  onClick={onClose}
+                  className="flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-purple-700 bg-purple-50/70 hover:bg-purple-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ShieldAlert className="w-4 h-4 text-purple-600" />
+                    <span>Admin Control Portal (Owner Only)</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
+                </Link>
+              )}
             </div>
           </div>
 

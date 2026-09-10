@@ -22,12 +22,21 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  Database
+  Database,
+  LogOut,
+  AlertTriangle
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ProductManager } from '../components/admin/ProductManager';
 import { SalesCalculator } from '../components/admin/SalesCalculator';
 import { CustomerDatabaseManager } from '../components/admin/CustomerDatabaseManager';
+import {
+  OWNER_ADMIN_EMAIL,
+  OWNER_ADMIN_NAME,
+  isCustomerBlockedFromAdmin,
+  isOwnerAdmin,
+  validateOwnerPasscode
+} from '../utils/adminSecurity';
 
 export const AdminDashboardPage: React.FC = () => {
   const {
@@ -41,7 +50,8 @@ export const AdminDashboardPage: React.FC = () => {
     deleteCoupon,
     addToast,
     currentUser,
-    switchUserRole
+    switchUserRole,
+    logout
   } = useStore();
 
   const navigate = useNavigate();
@@ -88,29 +98,85 @@ export const AdminDashboardPage: React.FC = () => {
 
   const handleAdminAuth = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const pin = adminPin.trim().toLowerCase();
-    if (
-      pin === '2026' ||
-      pin === 'admin123' ||
-      pin === 'admin' ||
-      pin === 'rezashobuz10@gmail.com' ||
-      pin === 'admin@shopnexa.com' ||
-      pin === 'shopnexa'
-    ) {
+    const pin = adminPin.trim();
+    if (validateOwnerPasscode(pin) || pin.toLowerCase() === OWNER_ADMIN_EMAIL.toLowerCase()) {
       switchUserRole('admin');
       addToast({
         type: 'success',
-        title: 'Admin Access Granted',
-        message: 'Welcome to ShopNexa Management Portal'
+        title: 'Master Admin Access Granted',
+        message: `Welcome ${OWNER_ADMIN_NAME} (${OWNER_ADMIN_EMAIL})`
       });
       setAdminError('');
     } else {
-      setAdminError('Invalid authorization PIN or email. Access denied.');
+      setAdminError('ভুল সিকিউরিটি কী বা পিন! অ্যাডমিন প্যানেল শুধুমাত্র ওনারের জন্য উন্মুক্ত।');
     }
   };
 
-  // If user is not authenticated as admin, show Restricted Security Gate
+  // 1. STRICT CUSTOMER BLOCKAGE: If current user is logged in as a regular customer (not the owner), completely deny access!
+  if (isCustomerBlockedFromAdmin(currentUser)) {
+    return (
+      <div className="min-h-screen bg-slate-950 py-16 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center text-slate-100">
+        <div className="max-w-md w-full bg-slate-900/95 rounded-3xl border border-rose-600/40 p-8 shadow-2xl relative overflow-hidden backdrop-blur-md">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-600/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center mx-auto mb-4 text-rose-500 shadow-lg shadow-rose-950/40">
+              <ShieldAlert className="w-9 h-9" />
+            </div>
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>অ্যাক্সেস ডিনাইড (Access Denied)</span>
+            </span>
+            <h2 className="text-xl font-black text-white mt-3">
+              অ্যাডমিন প্যানেল সুরক্ষিত
+            </h2>
+
+            <div className="mt-4 p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/40 text-left space-y-2">
+              <p className="text-xs text-rose-200">
+                লগইনকৃত কাস্টমার একাউন্ট: <strong className="text-white font-mono">{currentUser?.email}</strong>
+              </p>
+              <p className="text-[11px] text-rose-300/90 leading-relaxed">
+                নিরাপত্তা নীতি অনুযায়ী, ShopNexa অ্যাডমিন প্যানেলে শুধুমাত্র অনুমোদিত সাইট ওনার (<strong className="text-amber-300 font-bold">{OWNER_ADMIN_NAME} — {OWNER_ADMIN_EMAIL}</strong>) প্রবেশ করতে পারবেন।
+              </p>
+              <p className="text-[11px] text-rose-300/90 font-bold">
+                কোনো সাধারণ কাস্টমার বা ক্রেতা একাউন্টের জন্য এই প্যানেলে প্রবেশ সম্পূর্ণ নিষিদ্ধ।
+              </p>
+            </div>
+
+            <div className="mt-6 space-y-2.5">
+              <Link
+                to="/"
+                className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-lg shadow-orange-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Return to ShopNexa Storefront (দোকানে ফিরে যান)</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  addToast({
+                    type: 'info',
+                    title: 'লগআউট সফল',
+                    message: `অনুগ্রহ করে অনুমোদিত ওনার জিমেইল (${OWNER_ADMIN_EMAIL}) দিয়ে সাইন ইন করুন।`
+                  });
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 text-rose-400" />
+                <span>লগআউট করে ওনার হিসেবে লগইন করুন</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. If user is not authenticated as admin, show Owner Restricted Security Gate
   if (currentUser?.role !== 'admin') {
+    const isOwnerCurrent = isOwnerAdmin(currentUser);
+
     return (
       <div className="min-h-screen bg-slate-900 py-16 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center text-slate-100">
         <div className="max-w-md w-full bg-slate-800/95 rounded-3xl border border-slate-700 p-8 shadow-2xl backdrop-blur-sm">
@@ -118,21 +184,21 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-4 text-amber-400">
               <Lock className="w-8 h-8" />
             </div>
-            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
-              Confidential Area (গোপনীয়)
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-300 border border-orange-500/30">
+              Owner Confidential Area (মালিকানা সংরক্ষিত)
             </span>
             <h2 className="text-xl font-black text-white mt-3">
-              Admin Authorization Required
+              ShopNexa Master Admin Portal
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              This management portal is restricted. Only authorized system administrators can access this page.
+              Restricted exclusively to Owner: <strong className="text-amber-300 font-mono">{OWNER_ADMIN_EMAIL}</strong>
             </p>
           </div>
 
           <form onSubmit={handleAdminAuth} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                Admin Passcode / Security Key
+                Owner Security Passcode / Key
               </label>
               <div className="relative">
                 <input
@@ -143,7 +209,7 @@ export const AdminDashboardPage: React.FC = () => {
                     if (adminError) setAdminError('');
                   }}
                   placeholder="Enter passcode (e.g. 2026 or admin123)"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent placeholder-slate-500 pr-10"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent placeholder-slate-500 pr-10 font-mono"
                   autoFocus
                 />
                 <button
@@ -171,7 +237,7 @@ export const AdminDashboardPage: React.FC = () => {
           {/* Quick Owner Verification Button */}
           <div className="mt-6 pt-5 border-t border-slate-700/80 text-center">
             <p className="text-[11px] text-slate-400 mb-2.5">
-              Site Owner / Master Admin:
+              Verified Site Owner ({OWNER_ADMIN_NAME}):
             </p>
             <button
               type="button"
@@ -180,13 +246,13 @@ export const AdminDashboardPage: React.FC = () => {
                 addToast({
                   type: 'success',
                   title: 'Owner Verified',
-                  message: 'Welcome Reza Shobuz (Super Admin)'
+                  message: `Welcome ${OWNER_ADMIN_NAME} (${OWNER_ADMIN_EMAIL})`
                 });
               }}
               className="w-full py-2 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-600 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>1-Click Owner Sign In (rezashobuz10@gmail.com)</span>
+              <span>Sign In as Owner ({OWNER_ADMIN_EMAIL})</span>
             </button>
           </div>
 
@@ -207,6 +273,34 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50/50 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Owner Master Administrator Badge Banner */}
+        <div className="bg-gradient-to-r from-purple-950 via-slate-900 to-orange-950 rounded-2xl p-4 mb-6 border border-purple-500/30 text-white flex flex-col sm:flex-row items-center justify-between gap-4 text-xs shadow-lg">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/40 text-purple-300 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-black text-amber-300 text-xs sm:text-sm">👑 ShopNexa Master Administrator</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
+                  Exclusive Owner Security Active
+                </span>
+              </div>
+              <p className="text-slate-300 text-[11px] mt-0.5">
+                মাস্টার অ্যাডমিন: <strong>{OWNER_ADMIN_NAME}</strong> (<span className="text-amber-200 font-mono">{OWNER_ADMIN_EMAIL}</span>) • সাধারণ গ্রাহক প্রবেশ সম্পূর্ণ ব্লক করা আছে।
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <span className="text-[10px] text-slate-400">Database & Security:</span>
+            <span className="font-mono text-[11px] text-emerald-300 bg-black/40 px-2.5 py-1 rounded-xl border border-white/10 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Firestore Secured</span>
+            </span>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>

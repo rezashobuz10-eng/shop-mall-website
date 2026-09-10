@@ -21,12 +21,14 @@ import {
   MapPin,
   Clock,
   ExternalLink,
-  Heart
+  Heart,
+  Mail
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { OrderTrackingModal } from '../components/common/OrderTrackingModal';
 import { TaxInvoiceModal } from '../components/common/TaxInvoiceModal';
 import { SmsNotificationToast } from '../components/common/SmsNotificationToast';
+import { ShopNexaOrderEmailNotice } from '../components/common/ShopNexaOrderEmailNotice';
 import { soundEngine } from '../utils/audioFeedback';
 import { FALLBACK_PRODUCT_IMAGE, handleImageError, sanitizeImageUrl } from '../utils/imageUtils';
 import { extractPaymentDetails } from '../utils/paymentValidation';
@@ -40,6 +42,7 @@ export const ThankYouPage: React.FC = () => {
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showSmsToast, setShowSmsToast] = useState(true);
+  const [showEmailNoticeModal, setShowEmailNoticeModal] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [couponCopied, setCouponCopied] = useState(false);
 
@@ -156,6 +159,14 @@ export const ThankYouPage: React.FC = () => {
 
   const orderNum = order.orderNumber || order.id;
   const trackingNum = order.trackingNumber || `STF-${orderNum.slice(-6).toUpperCase()}`;
+  const customerEmail =
+    order.customerEmail ||
+    order.emailSentTo ||
+    (order.shippingAddress as any)?.email ||
+    'customer@gmail.com';
+  const confirmationCode =
+    order.orderConfirmationCode ||
+    `SNX-${orderNum.replace(/[^0-9]/g, '').slice(-6) || '849201'}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50/40 via-slate-50 to-slate-100/60 py-8 sm:py-12">
@@ -276,6 +287,67 @@ export const ThankYouPage: React.FC = () => {
               <Printer className="w-4 h-4 text-slate-500" />
               <span>রসিদ প্রিন্ট করুন</span>
             </button>
+          </div>
+        </div>
+
+        {/* ShopNexa Official Gmail Verification Code Card */}
+        <div className="bg-gradient-to-r from-slate-900 via-orange-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl mb-6 border border-orange-500/30 relative overflow-hidden">
+          <div className="absolute top-0 right-0 translate-x-8 -translate-y-8 w-56 h-56 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shrink-0">
+                <Mail className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/20 px-2.5 py-0.5 rounded-full border border-orange-500/30">
+                    ShopNexa Official Email Dispatch
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Delivered to Gmail
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  আপনার জিমেইলে কনফার্মেশন কোড পাঠানো হয়েছে! 📧
+                </h3>
+                <p className="text-xs text-slate-300">
+                  ShopNexa-এর পক্ষ থেকে <strong className="text-orange-300 font-bold">{customerEmail}</strong> জিমেইলে অফিসিয়াল অর্ডার কনফার্মেশন কোড পাঠানো হয়েছে।
+                </p>
+              </div>
+            </div>
+
+            {/* Verification Code Box & Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 shrink-0">
+              <div className="text-center sm:text-left px-2">
+                <span className="text-[10px] text-orange-300 font-bold block uppercase tracking-wider">
+                  Order Code
+                </span>
+                <span className="font-mono text-2xl font-black text-white tracking-widest">
+                  {confirmationCode}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(confirmationCode, 'অর্ডার কোড')}
+                  className="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  {copiedField === 'অর্ডার কোড' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedField === 'অর্ডার কোড' ? 'কপি হয়েছে' : 'Copy'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowEmailNoticeModal(true)}
+                  className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-orange-600" />
+                  <span>View Gmail Preview</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -582,6 +654,14 @@ export const ThankYouPage: React.FC = () => {
             phone={customerPhone}
             customerName={customerName}
             onClose={() => setShowSmsToast(false)}
+          />
+        )}
+
+        {order && (
+          <ShopNexaOrderEmailNotice
+            order={order}
+            isOpen={showEmailNoticeModal}
+            onClose={() => setShowEmailNoticeModal(false)}
           />
         )}
       </div>

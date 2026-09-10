@@ -23,5 +23,11 @@ service cloud.firestore {
       allow read, create, update: if true;
       allow delete: if false;
     }
+
+    // Order confirmation codes and Gmail notifications dispatched by ShopNexa
+    match /order_notifications/{notifId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
   }
 }

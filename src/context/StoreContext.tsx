@@ -30,8 +30,10 @@ import {
   saveCustomerToFirestore,
   fetchCustomersFromFirestore,
   saveAuthCodeToFirestore,
-  verifyAuthCodeInFirestore
+  verifyAuthCodeInFirestore,
+  dispatchShopNexaOrderEmail
 } from '../lib/firebase';
+import { OWNER_ADMIN_EMAIL } from '../utils/adminSecurity';
 
 interface StoreContextType {
   // Products
@@ -729,13 +731,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Orders
   const createOrder = (orderData: Partial<Order>): Order => {
     const randomNum = Math.floor(100000 + Math.random() * 900000);
+    const orderCodeNum = Math.floor(100000 + Math.random() * 900000);
+    const generatedOrderCode = `SNX-${orderCodeNum}`;
+    const cleanCustomerEmail = (orderData.customerEmail || currentUser?.email || 'customer@gmail.com').trim().toLowerCase();
+
     const newOrder: Order = {
       id: 'ord-' + Date.now(),
       orderNumber: `SNX-${randomNum}`,
+      orderConfirmationCode: generatedOrderCode,
+      emailNotificationSent: true,
+      emailSentTo: cleanCustomerEmail,
       userId: currentUser ? currentUser.id : 'guest-user',
       customerName: orderData.customerName || currentUser?.name || 'Customer',
       customerPhone: orderData.customerPhone || currentUser?.phone || '',
-      customerEmail: orderData.customerEmail || currentUser?.email || '',
+      customerEmail: cleanCustomerEmail,
       items: orderData.items || [],
       subtotal: orderData.subtotal || cartSubtotal,
       discount: orderData.discount || cartDiscount,
@@ -808,12 +817,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCart((prev) => prev.filter((item) => !item.selected));
     setAppliedCoupon(null);
 
+    // Asynchronously dispatch ShopNexa order confirmation code to customer's Gmail in Firestore
+    dispatchShopNexaOrderEmail({
+      orderId: newOrder.id,
+      orderNumber: newOrder.orderNumber || `SNX-${randomNum}`,
+      orderCode: generatedOrderCode,
+      trackingNumber: `STF-${String(randomNum).slice(-6)}`,
+      customerEmail: cleanCustomerEmail,
+      customerName: newOrder.customerName || 'Valued Customer',
+      total: newOrder.total,
+      itemsCount: newOrder.items.length
+    }).catch(console.error);
+
     // Notify user
     setNotifications((prev) => [
       {
         id: 'notif-' + Date.now(),
-        title: 'Order Confirmed!',
-        message: `Your order #${newOrder.orderNumber} has been received and confirmed.`,
+        title: 'Order Confirmed & Gmail Code Sent!',
+        message: `Your order #${newOrder.orderNumber} confirmed. Verification code ${generatedOrderCode} sent to ${cleanCustomerEmail}.`,
         date: 'Just now',
         read: false,
         type: 'order',
@@ -824,8 +845,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     addToast({
       type: 'success',
-      title: 'Order Placed Successfully!',
-      message: `Invoice #${newOrder.orderNumber} • ৳${newOrder.total.toLocaleString()}`
+      title: 'অর্ডার সফল! জিমেইলে কোড প্রেরিত 📧',
+      message: `Invoice #${newOrder.orderNumber} • কোড ${generatedOrderCode} গ্রাহকের জিমেইলে (${cleanCustomerEmail}) পাঠানো হয়েছে।`
     });
 
     return newOrder;
@@ -1302,6 +1323,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const switchUserRole = (role: 'customer' | 'seller' | 'admin') => {
+    if (role === 'admin') {
+      // Security Check: Only the owner (rezashobuz10@gmail.com) can access admin
+      if (currentUser && currentUser.email.toLowerCase() !== OWNER_ADMIN_EMAIL.toLowerCase() && currentUser.role !== 'admin') {
+        addToast({
+          type: 'error',
+          title: 'অ্যাডমিন এক্সেস সংরক্ষিত (Access Denied)',
+          message: `শুধুমাত্র সাইট ওনার (${OWNER_ADMIN_EMAIL}) অ্যাডমিন প্যানেল এক্সেস করতে পারবেন। কাস্টমার একাউন্টের জন্য এটি নিষিদ্ধ।`
+        });
+        return;
+      }
+    }
+
     const matched = users.find((u) => u.role === role);
     if (matched) {
       setCurrentUser(matched);

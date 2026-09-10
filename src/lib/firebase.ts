@@ -251,3 +251,78 @@ export async function verifyAuthCodeInFirestore(email: string, inputCode: string
     return { valid: false, reason: 'Database verification failed. Please try again.' };
   }
 }
+
+/**
+ * Dispatch and record ShopNexa order confirmation code notification to customer's Gmail in Firestore
+ */
+export async function dispatchShopNexaOrderEmail(params: {
+  orderId: string;
+  orderNumber: string;
+  orderCode: string;
+  trackingNumber?: string;
+  customerEmail: string;
+  customerName: string;
+  total: number;
+  itemsCount: number;
+}): Promise<boolean> {
+  const docId = `ord_notif_${params.orderId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  const path = `order_notifications/${docId}`;
+  const cleanEmail = (params.customerEmail || 'customer@gmail.com').trim().toLowerCase();
+
+  const record = {
+    id: docId,
+    orderId: params.orderId,
+    orderNumber: params.orderNumber,
+    orderCode: params.orderCode,
+    trackingNumber: params.trackingNumber || `STF-${params.orderNumber.replace(/[^0-9]/g, '').slice(-6)}`,
+    customerEmail: cleanEmail,
+    customerName: params.customerName || 'Valued Customer',
+    total: params.total,
+    itemsCount: params.itemsCount,
+    sender: 'ShopNexa Official Notifications <orders@shopnexa.com>',
+    subject: `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${params.orderCode} (Order #${params.orderNumber})`,
+    dispatchedAt: new Date().toISOString(),
+    status: 'delivered',
+    type: 'order_success_code',
+    deliveryChannel: 'gmail'
+  };
+
+  try {
+    await setDoc(doc(db, 'order_notifications', docId), record);
+
+    // Also register/update customer in Firestore if not already saved
+    await saveCustomerToFirestore({
+      email: cleanEmail,
+      name: params.customerName,
+      role: 'customer',
+      authMethod: 'email_code',
+      isVerified: true
+    });
+
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+    return false;
+  }
+}
+
+/**
+ * Fetch all dispatched order notifications from Firestore database
+ */
+export async function fetchOrderNotificationsFromFirestore(): Promise<any[]> {
+  const path = 'order_notifications';
+  try {
+    const q = query(collection(db, path), limit(100));
+    const snapshot = await getDocs(q);
+    const list: any[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(docSnap.data());
+    });
+    // Sort recent first
+    return list.sort((a, b) => new Date(b.dispatchedAt || 0).getTime() - new Date(a.dispatchedAt || 0).getTime());
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+

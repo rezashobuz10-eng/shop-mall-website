@@ -1891,8 +1891,8 @@ export const MOCK_USERS: User[] = [
   },
   {
     id: 'usr-admin-1',
-    name: 'ShopNexa Master Admin',
-    email: 'admin@shopnexa.com',
+    name: 'Reza Shobuz (Owner & Master Admin)',
+    email: 'rezashobuz10@gmail.com',
     phone: '01911002233',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80',
     role: 'admin',

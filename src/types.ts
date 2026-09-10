@@ -151,6 +151,9 @@ export interface Order {
   sellerId?: string;
   status: OrderStatus | string;
   cancelReason?: string;
+  orderConfirmationCode?: string;
+  emailNotificationSent?: boolean;
+  emailSentTo?: string;
   timeline?: {
     status: OrderStatus | string;
     timestamp: string;
@@ -159,6 +162,23 @@ export interface Order {
   }[];
   createdAt: string;
   notes?: string;
+}
+
+export interface OrderNotification {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  orderCode: string;
+  trackingNumber: string;
+  customerEmail: string;
+  customerName: string;
+  total: number;
+  itemsCount: number;
+  sender: string;
+  subject: string;
+  dispatchedAt: string;
+  status: 'delivered' | 'sent' | 'pending';
+  deliveryChannel: 'gmail';
 }
 
 export interface Review {

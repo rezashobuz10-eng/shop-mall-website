@@ -668,17 +668,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                       </div>
                     </Link>
 
-                    <Link
-                      to="/admin"
-                      onClick={() => setShowMoreMenu(false)}
-                      className="flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-purple-700 bg-purple-50/70 hover:bg-purple-100 transition-colors"
-                    >
-                      <ShieldAlert className="w-4 h-4 text-purple-600 shrink-0" />
-                      <div className="flex-1">
-                        <p className="font-bold text-purple-950">Admin Panel</p>
-                        <p className="text-[10px] text-purple-600">Governance, Products & Sales</p>
-                      </div>
-                    </Link>
+                    {(!currentUser || currentUser.role === 'admin' || currentUser.email?.toLowerCase() === 'rezashobuz10@gmail.com') && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setShowMoreMenu(false)}
+                        className="flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-purple-700 bg-purple-50/70 hover:bg-purple-100 transition-colors"
+                      >
+                        <ShieldAlert className="w-4 h-4 text-purple-600 shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-bold text-purple-950">Admin Panel (Owner Only)</p>
+                          <p className="text-[10px] text-purple-600">Restricted to rezashobuz10@gmail.com</p>
+                        </div>
+                      </Link>
+                    )}
 
                     <Link
                       to="/help"

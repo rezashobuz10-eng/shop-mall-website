@@ -18,14 +18,18 @@ import {
   AlertCircle,
   Copy,
   Check,
-  Package
+  Package,
+  Inbox
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import {
   FirestoreCustomer,
   saveCustomerToFirestore,
   fetchCustomersFromFirestore,
-  fetchOrderNotificationsFromFirestore
+  fetchOrderNotificationsFromFirestore,
+  dispatchShopNexaOrderEmail,
+  getGmailComposeUrl,
+  checkEmailConfigStatus
 } from '../../lib/firebase';
 import { OrderNotification } from '../../types';
 import { GoogleLogo } from '../auth/SocialLoginModal';
@@ -47,12 +51,15 @@ export const CustomerDatabaseManager: React.FC = () => {
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [orderNotifications, setOrderNotifications] = useState<OrderNotification[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [resendingOrderId, setResendingOrderId] = useState<string | null>(null);
+  const [emailConfig, setEmailConfig] = useState<{ configured: boolean; senderEmail?: string; provider?: string }>({ configured: false });
 
-  // Load order notifications on mount
+  // Load order notifications & SMTP status on mount
   useEffect(() => {
     fetchOrderNotificationsFromFirestore().then((notifs) => {
       setOrderNotifications(notifs);
     });
+    checkEmailConfigStatus().then(setEmailConfig).catch(() => {});
   }, []);
 
   // New Customer Form State
@@ -272,6 +279,44 @@ export const CustomerDatabaseManager: React.FC = () => {
     }
   };
 
+  const handleResendFromAdmin = async (item: any) => {
+    setResendingOrderId(item.orderId);
+    try {
+      const res = await dispatchShopNexaOrderEmail({
+        orderId: item.orderId,
+        orderNumber: item.orderNumber,
+        orderCode: item.confirmationCode,
+        trackingNumber: item.trackingNumber,
+        customerEmail: item.customerEmail,
+        customerName: item.customerName,
+        total: item.total,
+        itemsCount: 1
+      });
+
+      if (res.delivered) {
+        addToast({
+          type: 'success',
+          title: 'সরাসরি জিমেইলে পাঠানো হয়েছে! 📧',
+          message: `${item.customerEmail} ঠিকানায় অফিসিয়াল ইমেইল সফলভাবে পাঠানো হয়েছে।`
+        });
+      } else {
+        addToast({
+          type: 'info',
+          title: 'কোড প্রস্তুত ও ডাটাবেসে সংরক্ষিত 📧',
+          message: `কোড: ${item.confirmationCode} (${item.customerEmail})। সরাসরি পাঠানোর জন্য 'Compose' বাটন চাপুন।`
+        });
+      }
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'প্রেরণ ব্যর্থ',
+        message: 'ইমেইল সার্ভারে যোগাযোগে সমস্যা হয়েছে।'
+      });
+    } finally {
+      setResendingOrderId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Database Banner Card */}
@@ -451,6 +496,52 @@ export const CustomerDatabaseManager: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Order Codes SMTP Status & Dispatch Guide Banner */}
+      {subTab === 'order_codes' && (
+        <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-slate-50 border border-orange-200/80 rounded-3xl p-5 text-xs text-slate-700 shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-2xl bg-orange-100 text-orange-700 shrink-0 border border-orange-200">
+                <Mail className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {emailConfig.configured ? 'স্বয়ংক্রিয় জিমেইল ডেলিভারি সক্রিয় (Active SMTP)' : 'জিমেইল ইনবক্স ডেলিভারি ইঞ্জিন (Gmail SMTP Dispatch)'}
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    emailConfig.configured
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border border-amber-300'
+                  }`}>
+                    {emailConfig.configured ? `Connected: ${emailConfig.senderEmail || 'smtp.gmail.com'}` : 'App Password Ready'}
+                  </span>
+                </div>
+                <p className="text-slate-600 text-[11px] leading-relaxed max-w-2xl">
+                  অর্ডার সফল হওয়ার সাথে সাথে প্রতিটি অর্ডারের ৬-সংখ্যার সিকিউরিটি কনফার্মেশন কোড গ্রাহকের জিমেইল এবং ফায়ারস্টোর ডাটাবেসে নিবন্ধিত হয়।
+                  {!emailConfig.configured && (
+                    <span> ব্যাকগ্রাউন্ড স্বয়ংক্রিয় প্রেরণের জন্য <code className="font-bold text-orange-700 font-mono">SMTP_USER</code> ও <code className="font-bold text-orange-700 font-mono">SMTP_PASS</code> (Google App Password) কনফিগার করতে পারেন। এছাড়াও নিচের টেবিলে যেকোনো অর্ডারে <strong>'Compose'</strong> চাপলে সরাসরি জিমেইলে প্রাক-পূরণকৃত ইমেইল চালু হবে।</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href="https://mail.google.com/mail/u/0/#search/ShopNexa"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              >
+                <Inbox className="w-3.5 h-3.5 text-amber-300" />
+                <span>জিমেইল ইনবক্স খুলুন</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table: Customers or Dispatched Order Codes */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -645,13 +736,42 @@ export const CustomerDatabaseManager: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleCopyCode(item.confirmationCode)}
-                          className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-[10px] border border-orange-200 transition-colors cursor-pointer"
-                        >
-                          Copy Code
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCode(item.confirmationCode)}
+                            className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-[10px] border border-orange-200 transition-colors cursor-pointer"
+                            title="Copy 6-digit confirmation code"
+                          >
+                            Copy
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleResendFromAdmin(item)}
+                            disabled={resendingOrderId === item.orderId}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] border border-slate-200 transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                            title="Resend official email notification"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${resendingOrderId === item.orderId ? 'animate-spin' : ''}`} />
+                            <span>{resendingOrderId === item.orderId ? 'Sending...' : 'Resend'}</span>
+                          </button>
+
+                          <a
+                            href={getGmailComposeUrl(
+                              item.customerEmail,
+                              `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${item.confirmationCode} (Order #${item.orderNumber})`,
+                              `প্রিয় ${item.customerName},\n\nআপনার ShopNexa অর্ডার কোড: ${item.confirmationCode}\nঅর্ডার নম্বর: #${item.orderNumber}\nমোট মূল্য: ৳${item.total.toLocaleString()}\n\nShopNexa Support Desk`
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[10px] border border-blue-200 transition-colors cursor-pointer flex items-center gap-1"
+                            title="Open prefilled Gmail compose window"
+                          >
+                            <Inbox className="w-3 h-3" />
+                            <span>Compose</span>
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   ))

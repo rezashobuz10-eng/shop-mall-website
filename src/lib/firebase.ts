@@ -252,8 +252,50 @@ export async function verifyAuthCodeInFirestore(email: string, inputCode: string
   }
 }
 
+export interface OrderEmailDispatchResult {
+  success: boolean;
+  delivered: boolean;
+  method: 'smtp' | 'unconfigured_smtp' | 'firestore_mail' | 'error';
+  orderCode: string;
+  recipient: string;
+  gmailComposeUrl: string;
+  message?: string;
+}
+
 /**
- * Dispatch and record ShopNexa order confirmation code notification to customer's Gmail in Firestore
+ * Generate a prefilled Gmail compose URL so the email can be opened/sent directly in Gmail
+ */
+export function getGmailComposeUrl(recipient: string, subject: string, body: string): string {
+  const params = new URLSearchParams({
+    view: 'cm',
+    fs: '1',
+    to: recipient,
+    su: subject,
+    body: body
+  });
+  return `https://mail.google.com/mail/?${params.toString()}`;
+}
+
+/**
+ * Check backend SMTP configuration status
+ */
+export async function checkEmailConfigStatus(): Promise<{ configured: boolean; senderEmail?: string; provider?: string }> {
+  try {
+    const res = await fetch('/api/email-status');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // ignore fetch errors
+  }
+  return { configured: false };
+}
+
+/**
+ * Dispatch and record ShopNexa order confirmation code notification to customer's Gmail
+ * 1. Calls backend /api/send-order-email for real SMTP transmission
+ * 2. Saves to Firestore order_notifications collection
+ * 3. Saves to Firestore mail collection (Firebase Trigger Email extension format)
  */
 export async function dispatchShopNexaOrderEmail(params: {
   orderId: string;
@@ -264,31 +306,94 @@ export async function dispatchShopNexaOrderEmail(params: {
   customerName: string;
   total: number;
   itemsCount: number;
-}): Promise<boolean> {
+}): Promise<OrderEmailDispatchResult> {
   const docId = `ord_notif_${params.orderId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-  const path = `order_notifications/${docId}`;
   const cleanEmail = (params.customerEmail || 'customer@gmail.com').trim().toLowerCase();
+  const subject = `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${params.orderCode} (Order #${params.orderNumber})`;
+  const tracking = params.trackingNumber || `STF-${params.orderNumber.replace(/[^0-9]/g, '').slice(-6)}`;
+  
+  const plainTextBody = `প্রিয় ${params.customerName || 'গ্রাহক'},
 
+ShopNexa থেকে কেনাকাটা করার জন্য ধন্যবাদ! আপনার অর্ডার কনফার্মেশন কোড: ${params.orderCode}
+
+অর্ডার নম্বর: #${params.orderNumber}
+ট্র্যাকিং নম্বর: ${tracking}
+মোট আইটেম: ${params.itemsCount || 1} টি
+সর্বমোট মূল্য: ৳${params.total.toLocaleString()}
+
+ডেলিভারির সময় বা অর্ডার ট্র্যাকিংয়ের জন্য এই সিকিউরিটি কোডটি সংরক্ষণ করুন।
+ShopNexa e-Commerce Support: support@shopnexa.com`;
+
+  const gmailComposeUrl = getGmailComposeUrl(cleanEmail, subject, plainTextBody);
+
+  let backendDelivered = false;
+  let dispatchMethod: OrderEmailDispatchResult['method'] = 'firestore_mail';
+
+  // 1. Try real email dispatch via backend Express API
+  try {
+    const res = await fetch('/api/send-order-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: params.orderId,
+        orderNumber: params.orderNumber,
+        orderCode: params.orderCode,
+        trackingNumber: tracking,
+        customerEmail: cleanEmail,
+        customerName: params.customerName,
+        total: params.total,
+        itemsCount: params.itemsCount
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.delivered) {
+        backendDelivered = true;
+        dispatchMethod = 'smtp';
+      } else if (data.method === 'unconfigured_smtp') {
+        dispatchMethod = 'unconfigured_smtp';
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[ShopNexa Email API] Backend dispatch fetch failed:', apiErr);
+  }
+
+  // 2. Record in Firestore collections
   const record = {
     id: docId,
     orderId: params.orderId,
     orderNumber: params.orderNumber,
     orderCode: params.orderCode,
-    trackingNumber: params.trackingNumber || `STF-${params.orderNumber.replace(/[^0-9]/g, '').slice(-6)}`,
+    trackingNumber: tracking,
     customerEmail: cleanEmail,
     customerName: params.customerName || 'Valued Customer',
     total: params.total,
     itemsCount: params.itemsCount,
     sender: 'ShopNexa Official Notifications <orders@shopnexa.com>',
-    subject: `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${params.orderCode} (Order #${params.orderNumber})`,
+    subject,
     dispatchedAt: new Date().toISOString(),
-    status: 'delivered',
+    status: backendDelivered ? 'delivered_smtp' : 'dispatched_firestore',
+    realDelivery: backendDelivered,
     type: 'order_success_code',
     deliveryChannel: 'gmail'
   };
 
   try {
+    // Save to order_notifications
     await setDoc(doc(db, 'order_notifications', docId), record);
+
+    // Save to mail collection (Firebase Trigger Email extension)
+    await setDoc(doc(db, 'mail', docId), {
+      to: cleanEmail,
+      message: {
+        subject,
+        text: plainTextBody,
+        html: `<p>প্রিয় <strong>${params.customerName}</strong>,</p><p>আপনার ShopNexa অর্ডার কোড: <strong>${params.orderCode}</strong></p><p>অর্ডার #${params.orderNumber} • মোট ৳${params.total.toLocaleString()}</p>`
+      }
+    }).catch(() => {
+      // ignore mail collection error if extension not installed
+    });
 
     // Also register/update customer in Firestore if not already saved
     await saveCustomerToFirestore({
@@ -299,10 +404,27 @@ export async function dispatchShopNexaOrderEmail(params: {
       isVerified: true
     });
 
-    return true;
+    return {
+      success: true,
+      delivered: backendDelivered,
+      method: dispatchMethod,
+      orderCode: params.orderCode,
+      recipient: cleanEmail,
+      gmailComposeUrl,
+      message: backendDelivered
+        ? `সরাসরি জিমেইলে পাঠানো হয়েছে (${cleanEmail})`
+        : `অর্ডার কোড জেনারেট ও ডাটাবেসে নিবন্ধিত হয়েছে (${cleanEmail})`
+    };
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
-    return false;
+    handleFirestoreError(error, OperationType.WRITE, `order_notifications/${docId}`);
+    return {
+      success: false,
+      delivered: false,
+      method: 'error',
+      orderCode: params.orderCode,
+      recipient: cleanEmail,
+      gmailComposeUrl
+    };
   }
 }
 

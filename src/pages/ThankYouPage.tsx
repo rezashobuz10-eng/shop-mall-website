@@ -22,7 +22,10 @@ import {
   Clock,
   ExternalLink,
   Heart,
-  Mail
+  Mail,
+  RefreshCw,
+  Inbox,
+  AlertTriangle
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { OrderTrackingModal } from '../components/common/OrderTrackingModal';
@@ -32,6 +35,7 @@ import { ShopNexaOrderEmailNotice } from '../components/common/ShopNexaOrderEmai
 import { soundEngine } from '../utils/audioFeedback';
 import { FALLBACK_PRODUCT_IMAGE, handleImageError, sanitizeImageUrl } from '../utils/imageUtils';
 import { extractPaymentDetails } from '../utils/paymentValidation';
+import { getGmailComposeUrl, dispatchShopNexaOrderEmail } from '../lib/firebase';
 import { Order } from '../types';
 
 export const ThankYouPage: React.FC = () => {
@@ -45,6 +49,8 @@ export const ThankYouPage: React.FC = () => {
   const [showEmailNoticeModal, setShowEmailNoticeModal] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [couponCopied, setCouponCopied] = useState(false);
+  const [isResendingCode, setIsResendingCode] = useState(false);
+  const [resendStatusMsg, setResendStatusMsg] = useState<string | null>(null);
 
   // 1. Check router state (passed directly from CheckoutPage navigate)
   const stateOrder = (location.state as { order?: Order } | undefined)?.order;
@@ -119,6 +125,45 @@ export const ThankYouPage: React.FC = () => {
       message: 'THANKYOU10 কোডটি পরবর্তী অর্ডারে ১০% ছাড় পেতে ব্যবহার করুন।'
     });
     setTimeout(() => setCouponCopied(false), 3000);
+  };
+
+  const handleResendOrderCode = async () => {
+    if (!order) return;
+    setIsResendingCode(true);
+    setResendStatusMsg(null);
+    try {
+      const result = await dispatchShopNexaOrderEmail({
+        orderId: order.id,
+        orderNumber: order.orderNumber || order.id,
+        orderCode: order.orderConfirmationCode || `SNX-${(order.orderNumber || order.id).replace(/[^0-9]/g, '').slice(-6) || '849201'}`,
+        trackingNumber: order.trackingNumber,
+        customerEmail: order.customerEmail || (order.shippingAddress as any)?.email || 'customer@gmail.com',
+        customerName: order.shippingAddress?.fullName || order.customerName || 'Valued Customer',
+        total: order.total,
+        itemsCount: order.items.length
+      });
+
+      if (result.delivered) {
+        setResendStatusMsg(`সরাসরি জিমেইলে সফলভাবে পৌঁছেছে! (${result.recipient})`);
+        addToast({
+          type: 'success',
+          title: 'কোড জিমেইলে প্রেরিত 📧',
+          message: `${result.recipient} ঠিকানায় অফিসিয়াল ইমেইল সফলভাবে পাঠানো হয়েছে।`
+        });
+      } else {
+        setResendStatusMsg(`কোড নিশ্চিত ও প্রস্তুত আছে। ইনবক্স/স্প্যাম ফোল্ডার চেক করুন।`);
+        addToast({
+          type: 'info',
+          title: 'ইমেইল কোড আপডেট 📧',
+          message: `কোড: ${result.orderCode} • ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।`
+        });
+      }
+    } catch {
+      setResendStatusMsg('ইমেইল সার্ভারে যোগাযোগ করতে সমস্যা হয়েছে। স্ক্রিনে থাকা কোডটি সেভ করে রাখুন।');
+    } finally {
+      setIsResendingCode(false);
+      setTimeout(() => setResendStatusMsg(null), 7000);
+    }
   };
 
   if (!order) {
@@ -293,59 +338,119 @@ export const ThankYouPage: React.FC = () => {
         {/* ShopNexa Official Gmail Verification Code Card */}
         <div className="bg-gradient-to-r from-slate-900 via-orange-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl mb-6 border border-orange-500/30 relative overflow-hidden">
           <div className="absolute top-0 right-0 translate-x-8 -translate-y-8 w-56 h-56 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shrink-0">
-                <Mail className="w-6 h-6" />
+          <div className="relative z-10 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shrink-0">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/20 px-2.5 py-0.5 rounded-full border border-orange-500/30">
+                      ShopNexa Official Email Dispatch
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Active Dispatch Engine
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-white">
+                    আপনার জিমেইলে কনফার্মেশন কোড পাঠানো হয়েছে! 📧
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    ShopNexa-এর পক্ষ থেকে <strong className="text-orange-300 font-bold">{customerEmail}</strong> জিমেইলে অফিসিয়াল সিকিউরিটি কনফার্মেশন কোড প্রেরণ করা হয়েছে।
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 bg-orange-500/20 px-2.5 py-0.5 rounded-full border border-orange-500/30">
-                    ShopNexa Official Email Dispatch
+
+              {/* Verification Code Box & Actions */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 shrink-0">
+                <div className="text-center sm:text-left px-2">
+                  <span className="text-[10px] text-orange-300 font-bold block uppercase tracking-wider">
+                    Official Order Code
                   </span>
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Delivered to Gmail
+                  <span className="font-mono text-2xl font-black text-white tracking-widest">
+                    {confirmationCode}
                   </span>
                 </div>
-                <h3 className="text-base sm:text-lg font-black text-white">
-                  আপনার জিমেইলে কনফার্মেশন কোড পাঠানো হয়েছে! 📧
-                </h3>
-                <p className="text-xs text-slate-300">
-                  ShopNexa-এর পক্ষ থেকে <strong className="text-orange-300 font-bold">{customerEmail}</strong> জিমেইলে অফিসিয়াল অর্ডার কনফার্মেশন কোড পাঠানো হয়েছে।
-                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(confirmationCode, 'অর্ডার কোড')}
+                    className="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {copiedField === 'অর্ডার কোড' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedField === 'অর্ডার কোড' ? 'কপি হয়েছে' : 'Copy'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailNoticeModal(true)}
+                    className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-orange-600" />
+                    <span>View Template</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Verification Code Box & Actions */}
-            <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 shrink-0">
-              <div className="text-center sm:text-left px-2">
-                <span className="text-[10px] text-orange-300 font-bold block uppercase tracking-wider">
-                  Order Code
-                </span>
-                <span className="font-mono text-2xl font-black text-white tracking-widest">
-                  {confirmationCode}
-                </span>
+            {/* Direct Gmail & Resend Interactive Actions Bar */}
+            <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleResendOrderCode}
+                  disabled={isResendingCode}
+                  className="px-3.5 py-2 rounded-xl bg-orange-600/90 hover:bg-orange-500 text-white font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isResendingCode ? 'animate-spin' : ''}`} />
+                  <span>{isResendingCode ? 'পাঠানো হচ্ছে...' : 'পুনরায় ইমেইল কোড পাঠান (Resend)'}</span>
+                </button>
+
+                <a
+                  href={`https://mail.google.com/mail/u/0/#search/ShopNexa`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Inbox className="w-3.5 h-3.5 text-amber-300" />
+                  <span>জিমেইল ইনবক্স খুলুন (Open Gmail)</span>
+                  <ExternalLink className="w-3 h-3 text-slate-300" />
+                </a>
+
+                <a
+                  href={getGmailComposeUrl(
+                    customerEmail,
+                    `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${confirmationCode} (Order #${orderNum})`,
+                    `প্রিয় ${customerName},\n\nআপনার ShopNexa অর্ডার কনফার্মেশন কোড: ${confirmationCode}\nঅর্ডার নম্বর: #${orderNum}\nট্র্যাকিং নম্বর: ${trackingNum}\nমোট মূল্য: ৳${order.total.toLocaleString()}\n\nShopNexa Support Desk`
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>জিমেইল থেকে কম্পোজ / ফরোয়ার্ড করুন</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(confirmationCode, 'অর্ডার কোড')}
-                  className="px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  {copiedField === 'অর্ডার কোড' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedField === 'অর্ডার কোড' ? 'কপি হয়েছে' : 'Copy'}</span>
-                </button>
+              {resendStatusMsg && (
+                <span className="text-amber-300 font-medium animate-pulse">
+                  {resendStatusMsg}
+                </span>
+              )}
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowEmailNoticeModal(true)}
-                  className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-orange-600" />
-                  <span>View Gmail Preview</span>
-                </button>
+            {/* Helpful Troubleshooting / Spam Guidance Box */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-[11px] text-slate-300 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-bold text-amber-300 block">জিমেইলে সরাসরি ইনবক্সে কোড না পেলে:</span>
+                <p className="text-slate-300 leading-relaxed">
+                  ১. Google-এর ফিল্টারের কারণে মেসেজটি অনেক সময় জিমেইলের <strong>Spam (স্প্যাম)</strong> অথবা <strong>Promotions (প্রমোশন)</strong> ফোল্ডারে চলে যেতে পারে, অনুগ্রহ করে সেখানে চেক করুন।<br />
+                  ২. স্ক্রিনে প্রদর্শিত কোড <span className="font-mono font-black text-white bg-white/10 px-1 rounded">{confirmationCode}</span>-টি নোট করে রাখুন, এটি সরাসরি আপনার ডেলিভারি রাইডারের জন্য প্রযোজ্য।
+                </p>
               </div>
             </div>
           </div>

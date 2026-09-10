@@ -1131,6 +1131,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Store in Firestore auth_codes collection
     await saveAuthCodeToFirestore(cleanEmail, generatedCode);
 
+    // Call backend API for real email dispatch if SMTP is configured
+    try {
+      fetch('/api/send-auth-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, code: generatedCode })
+      }).catch(console.warn);
+    } catch {
+      // ignore
+    }
+
     // Also store local fallback so verification is instant in all network conditions
     try {
       localStorage.setItem(

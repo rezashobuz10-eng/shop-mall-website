@@ -12,11 +12,12 @@ import {
   RefreshCw,
   X,
   Package,
-  Clock
+  Clock,
+  Inbox
 } from 'lucide-react';
 import { Order } from '../../types';
 import { Logo } from './Logo';
-import { dispatchShopNexaOrderEmail } from '../../lib/firebase';
+import { dispatchShopNexaOrderEmail, getGmailComposeUrl } from '../../lib/firebase';
 import { useStore } from '../../context/StoreContext';
 
 interface ShopNexaOrderEmailNoticeProps {
@@ -236,7 +237,7 @@ export const ShopNexaOrderEmailNotice: React.FC<ShopNexaOrderEmailNoticeProps> =
 
         {/* Modal Footer Actions */}
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleResendToGmail}
@@ -248,13 +249,28 @@ export const ShopNexaOrderEmailNotice: React.FC<ShopNexaOrderEmailNoticeProps> =
             </button>
 
             <a
-              href="https://mail.google.com"
+              href="https://mail.google.com/mail/u/0/#search/ShopNexa"
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span>Open Gmail (জিমেইল ওপেন করুন)</span>
+              <Inbox className="w-3.5 h-3.5 text-amber-300" />
+              <span>Open Gmail (ইনবক্স খুলুন)</span>
               <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+
+            <a
+              href={getGmailComposeUrl(
+                customerEmail,
+                `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${confirmationCode} (Order #${orderNum})`,
+                `প্রিয় ${customerName},\n\nআপনার ShopNexa অর্ডার কোড: ${confirmationCode}\nঅর্ডার নম্বর: #${orderNum}\nট্র্যাকিং নম্বর: ${trackingNum}\nমোট মূল্য: ৳${order.total.toLocaleString()}\n\nShopNexa Support Team`
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Compose in Gmail</span>
+              <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 

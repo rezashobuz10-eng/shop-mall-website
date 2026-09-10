@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck, Store, CheckCircle2, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck, Store, CheckCircle2, Sparkles, Key, Database } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { useStore } from '../context/StoreContext';
 import { GoogleLogo, FacebookLogo, SocialLoginModal } from '../components/auth/SocialLoginModal';
+import { EmailCodeAuthModal } from '../components/auth/EmailCodeAuthModal';
 
 export const AuthPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,18 +14,24 @@ export const AuthPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'customer' | 'seller'>('customer');
   const [socialModalProvider, setSocialModalProvider] = useState<'google' | 'facebook' | null>(null);
+  const [isEmailCodeModalOpen, setIsEmailCodeModalOpen] = useState(false);
 
   const { login, switchUserRole, loginWithGoogle, loginWithFacebook } = useStore();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, password);
+    login(email, password, role);
     navigate('/');
   };
 
   const handleSocialSuccess = () => {
     setSocialModalProvider(null);
+    navigate('/');
+  };
+
+  const handleEmailCodeSuccess = () => {
+    setIsEmailCodeModalOpen(false);
     navigate('/');
   };
 
@@ -97,15 +104,41 @@ export const AuthPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Direct Social Login: Google / Gmail & Facebook */}
+        {/* Direct Social & Email Code Authentication */}
         <div className="space-y-2.5 mb-5">
-          <div className="flex items-center justify-between px-1">
+          {/* Email 6-Digit Code Auth Feature Banner Button */}
+          <button
+            type="button"
+            id="email-code-auth-btn"
+            onClick={() => setIsEmailCodeModalOpen(true)}
+            className="w-full py-3 px-3.5 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-2xl flex items-center justify-between shadow-md hover:shadow-lg transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-xl bg-white/20 text-white">
+                <Key className="w-4 h-4" />
+              </span>
+              <div className="text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-black text-xs">Sign In with 6-Digit Email Code</span>
+                  <span className="px-1.5 py-0.2 bg-emerald-400 text-emerald-950 text-[9px] font-black rounded-full uppercase">
+                    New
+                  </span>
+                </div>
+                <p className="text-[10px] text-blue-100 font-normal">
+                  ইমেইলে সিকিউরিটি কোড যাবে এবং জিমেইল ডাটাবেসে সেভ হবে
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-blue-200 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+
+          <div className="flex items-center justify-between px-1 pt-1">
             <span className="text-[11px] font-bold text-slate-700">
-              {isLogin ? 'Direct Social Sign In:' : 'Fast 1-Click Registration:'}
+              {isLogin ? 'Or Instant 1-Click Social Sign In:' : 'Or Fast 1-Click Registration:'}
             </span>
             <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              <span>Instant Access</span>
+              <Database className="w-2.5 h-2.5" />
+              <span>Saves to Firestore DB</span>
             </span>
           </div>
 
@@ -133,15 +166,10 @@ export const AuthPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Quick Bengali Subtitle/Hint */}
-          <p className="text-[11px] text-center text-slate-500 font-medium">
-            জিমেইল বা ফেসবুক দিয়ে সরাসরি ১-ক্লিকে লগইন করুন
-          </p>
-
           <div className="relative my-4 flex items-center justify-center">
             <div className="border-t border-slate-200 w-full"></div>
             <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
-              or use email & password
+              or standard password login
             </span>
             <div className="border-t border-slate-200 w-full"></div>
           </div>
@@ -275,6 +303,15 @@ export const AuthPage: React.FC = () => {
         provider={socialModalProvider}
         onClose={() => setSocialModalProvider(null)}
         onSuccess={handleSocialSuccess}
+      />
+
+      {/* 6-Digit Email Code Verification Modal */}
+      <EmailCodeAuthModal
+        isOpen={isEmailCodeModalOpen}
+        onClose={() => setIsEmailCodeModalOpen(false)}
+        onSuccess={handleEmailCodeSuccess}
+        initialEmail={email}
+        role={role}
       />
     </div>
   );

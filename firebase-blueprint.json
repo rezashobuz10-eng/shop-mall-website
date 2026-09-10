@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Registered customer record storing their authenticated Gmail, profile information, and login history.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for customer document"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Customer Gmail / Email address"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Customer display name"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["customer", "seller", "admin"],
+          "description": "Customer access role"
+        },
+        "authMethod": {
+          "type": "string",
+          "description": "Authentication method used (email_code or google)"
+        },
+        "isVerified": {
+          "type": "boolean",
+          "description": "Whether the email code or Google account has been verified"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Customer phone number if provided"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Account registration timestamp"
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Last authenticated login timestamp"
+        }
+      },
+      "required": ["id", "email", "name", "role", "isVerified", "createdAt"]
+    },
+    "AuthCode": {
+      "title": "AuthCode",
+      "description": "Authentication verification code record sent to customer email for verification.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifier for the code request"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Destination email for code"
+        },
+        "code": {
+          "type": "string",
+          "maxLength": 6,
+          "description": "6-digit OTP code"
+        },
+        "expiresAt": {
+          "type": "string",
+          "description": "Expiry timestamp"
+        },
+        "used": {
+          "type": "boolean",
+          "description": "Whether code has been consumed"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Generation timestamp"
+        }
+      },
+      "required": ["id", "email", "code", "expiresAt", "used", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Stores customer profile, authenticated Gmail address, and verification state."
+    },
+    "/auth_codes/{codeId}": {
+      "schema": "AuthCode",
+      "description": "Temporary verification codes for email OTP login."
+    },
+    "/test/{docId}": {
+      "schema": "Customer",
+      "description": "Connection test document for Firestore health checks."
+    }
+  }
+}

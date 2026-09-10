@@ -21,11 +21,13 @@ import {
   ArrowLeft,
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Database
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ProductManager } from '../components/admin/ProductManager';
 import { SalesCalculator } from '../components/admin/SalesCalculator';
+import { CustomerDatabaseManager } from '../components/admin/CustomerDatabaseManager';
 
 export const AdminDashboardPage: React.FC = () => {
   const {
@@ -47,7 +49,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [adminError, setAdminError] = useState('');
   const [showPin, setShowPin] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'calculator' | 'banners' | 'coupons' | 'sellers'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'calculator' | 'banners' | 'coupons' | 'sellers'>('overview');
 
   // New Coupon Form
   const [newCouponCode, setNewCouponCode] = useState('');
@@ -286,6 +288,20 @@ export const AdminDashboardPage: React.FC = () => {
             Platform Overview
           </button>
           <button
+            onClick={() => setActiveTab('customers')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'customers'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Customer Database & Gmails (কাস্টমার ডাটাবেস)</span>
+            <span className="px-1.5 py-0.2 bg-emerald-400 text-emerald-950 text-[9px] font-black rounded-full">
+              Firestore
+            </span>
+          </button>
+          <button
             onClick={() => setActiveTab('products')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'products'
@@ -338,6 +354,9 @@ export const AdminDashboardPage: React.FC = () => {
             Merchant Directory ({sellers.length})
           </button>
         </div>
+
+        {/* Tab: Customer Database & Gmails */}
+        {activeTab === 'customers' && <CustomerDatabaseManager />}
 
         {/* Tab 1: Overview and Recent Platform Orders */}
         {activeTab === 'overview' && (

@@ -66,6 +66,8 @@ export interface User {
   addresses: Address[];
   joinedDate: string;
   authProvider?: 'email' | 'google' | 'facebook';
+  authMethod?: 'email_code' | 'google' | 'facebook' | 'password';
+  isVerified?: boolean;
 }
 
 export interface Address {

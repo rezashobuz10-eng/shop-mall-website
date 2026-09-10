@@ -1,5 +1,6 @@
 import { Product, Category, Seller, Coupon, Banner, Review, User, Order } from '../types';
 import { ADDITIONAL_PRODUCTS } from './additionalProducts';
+import { SAREE_PRODUCTS } from './sareeProducts';
 
 export const MOCK_CATEGORIES: Category[] = [
   {
@@ -44,7 +45,7 @@ export const MOCK_CATEGORIES: Category[] = [
     slug: 'womens-fashion',
     icon: 'Sparkles',
     image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=400&q=80',
-    productCount: 310,
+    productCount: 345,
     featured: true
   },
   {
@@ -1675,7 +1676,8 @@ export const MOCK_PRODUCTS: Product[] = [
     warranty: '1 Year Replacement Warranty',
     deliveryDays: 2
   },
-  ...ADDITIONAL_PRODUCTS
+  ...ADDITIONAL_PRODUCTS,
+  ...SAREE_PRODUCTS
 ];
 
 export const MOCK_BANNERS: Banner[] = [

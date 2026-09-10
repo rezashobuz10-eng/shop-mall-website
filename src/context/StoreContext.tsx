@@ -25,6 +25,13 @@ import {
   MOCK_ORDERS
 } from '../data/mockData';
 import { sanitizeImageUrl, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
+import {
+  FirestoreCustomer,
+  saveCustomerToFirestore,
+  fetchCustomersFromFirestore,
+  saveAuthCodeToFirestore,
+  verifyAuthCodeInFirestore
+} from '../lib/firebase';
 
 interface StoreContextType {
   // Products
@@ -92,6 +99,15 @@ interface StoreContextType {
   // User & Auth
   currentUser: User | null;
   users: User[];
+  firestoreCustomers: FirestoreCustomer[];
+  refreshFirestoreCustomers: () => Promise<void>;
+  sendEmailAuthCode: (email: string) => Promise<{ success: boolean; code?: string; message: string }>;
+  verifyEmailCodeAndLogin: (
+    email: string,
+    code: string,
+    optionalName?: string,
+    role?: 'customer' | 'seller'
+  ) => Promise<{ success: boolean; message: string }>;
   login: (emailOrPhone: string, password?: string, role?: 'customer' | 'seller' | 'admin') => boolean;
   loginWithGoogle: (customEmail?: string, customName?: string) => Promise<boolean>;
   loginWithFacebook: (customName?: string, customEmail?: string) => Promise<boolean>;
@@ -243,8 +259,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [categories, setCategories] = useState<Category[]>(() => {
     const raw = loadFromStorage('sn_categories', MOCK_CATEGORIES);
-    // Ensure Sports category has a fresh, valid working Unsplash image
+    // Ensure Sports category has a fresh, valid working Unsplash image & Women's Fashion count is synced
     return raw.map((c) => {
+      if (c.slug === 'womens-fashion') {
+        const found = MOCK_CATEGORIES.find((m) => m.slug === 'womens-fashion');
+        return found ? { ...c, productCount: found.productCount } : c;
+      }
       if (c.slug === 'sports' || c.id === 'cat-10') {
         return {
           ...c,
@@ -284,6 +304,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [users, setUsers] = useState<User[]>(() =>
     loadFromStorage('sn_users', MOCK_USERS)
   );
+  const [firestoreCustomers, setFirestoreCustomers] = useState<FirestoreCustomer[]>([]);
+
+  const refreshFirestoreCustomers = async () => {
+    try {
+      const records = await fetchCustomersFromFirestore();
+      if (records && records.length > 0) {
+        setFirestoreCustomers(records);
+      }
+    } catch (err) {
+      console.warn('Could not fetch Firestore customers:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshFirestoreCustomers();
+  }, []);
   const [currentUser, setCurrentUser] = useState<User | null>(() =>
     loadFromStorage('sn_current_user', MOCK_USERS[0])
   );
@@ -1008,6 +1044,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       setCurrentUser(updated);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+
+      // Save customer Gmail to Firestore database
+      saveCustomerToFirestore({
+        email,
+        name: updated.name,
+        role: updated.role,
+        authMethod: 'google',
+        isVerified: true,
+        avatar: updated.avatar
+      }).then(() => refreshFirestoreCustomers()).catch(console.error);
+
       addToast({
         type: 'success',
         title: 'Google Sign-In Successful!',
@@ -1025,17 +1072,160 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       role: 'customer',
       joinedDate: 'Today',
       addresses: [],
-      authProvider: 'google'
+      authProvider: 'google',
+      authMethod: 'google',
+      isVerified: true
     };
 
     setUsers((prev) => [...prev, newUser]);
     setCurrentUser(newUser);
+
+    // Save customer Gmail to Firestore database
+    saveCustomerToFirestore({
+      email,
+      name,
+      role: 'customer',
+      authMethod: 'google',
+      isVerified: true,
+      avatar: newUser.avatar
+    }).then(() => refreshFirestoreCustomers()).catch(console.error);
+
     addToast({
       type: 'success',
       title: 'Google Sign-In Successful!',
       message: `Welcome to ShopNexa, ${newUser.name}! Signed in with Gmail.`
     });
     return true;
+  };
+
+  const sendEmailAuthCode = async (email: string): Promise<{ success: boolean; code?: string; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, message: 'Please provide a valid Gmail or email address.' };
+    }
+
+    // Generate random 6-digit numeric OTP code
+    const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store in Firestore auth_codes collection
+    await saveAuthCodeToFirestore(cleanEmail, generatedCode);
+
+    // Also store local fallback so verification is instant in all network conditions
+    try {
+      localStorage.setItem(
+        `sn_code_${cleanEmail}`,
+        JSON.stringify({
+          code: generatedCode,
+          expiresAt: Date.now() + 10 * 60 * 1000
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    addToast({
+      type: 'info',
+      title: 'Authentication Code Dispatched 📧',
+      message: `A 6-digit security code was sent to ${cleanEmail}.`
+    });
+
+    return {
+      success: true,
+      code: generatedCode,
+      message: `Verification code sent to ${cleanEmail}`
+    };
+  };
+
+  const verifyEmailCodeAndLogin = async (
+    email: string,
+    code: string,
+    optionalName?: string,
+    role: 'customer' | 'seller' = 'customer'
+  ): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCode = code.trim();
+
+    if (!cleanCode || cleanCode.length !== 6) {
+      return { success: false, message: 'Please enter the complete 6-digit code.' };
+    }
+
+    // 1. Check local backup code
+    let isValid = false;
+    try {
+      const local = localStorage.getItem(`sn_code_${cleanEmail}`);
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed.code === cleanCode && parsed.expiresAt > Date.now()) {
+          isValid = true;
+          localStorage.removeItem(`sn_code_${cleanEmail}`);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Check Firestore database if local was not matched
+    if (!isValid) {
+      const dbCheck = await verifyAuthCodeInFirestore(cleanEmail, cleanCode);
+      if (dbCheck.valid) {
+        isValid = true;
+      } else {
+        return { success: false, message: dbCheck.reason || 'Invalid or expired code. Please try again.' };
+      }
+    }
+
+    const derivedName =
+      optionalName?.trim() ||
+      cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) ||
+      'Customer';
+
+    // 3. CRITICAL: Save customer Gmail & profile to Firestore database!
+    const savedCustomer = await saveCustomerToFirestore({
+      email: cleanEmail,
+      name: derivedName,
+      role,
+      authMethod: 'email_code',
+      isVerified: true
+    });
+
+    // 4. Update state
+    const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
+    let authenticatedUser: User;
+
+    if (existing) {
+      authenticatedUser = {
+        ...existing,
+        name: optionalName?.trim() || existing.name,
+        authMethod: 'email_code',
+        isVerified: true
+      };
+      setUsers((prev) => prev.map((u) => (u.id === authenticatedUser.id ? authenticatedUser : u)));
+    } else {
+      authenticatedUser = {
+        id: savedCustomer.id || ('usr-ec-' + Date.now()),
+        name: derivedName,
+        email: cleanEmail,
+        phone: '01700000000',
+        avatar: savedCustomer.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+        role,
+        joinedDate: 'Today',
+        addresses: [],
+        authMethod: 'email_code',
+        isVerified: true
+      };
+      setUsers((prev) => [...prev, authenticatedUser]);
+    }
+
+    setCurrentUser(authenticatedUser);
+    await refreshFirestoreCustomers();
+
+    addToast({
+      type: 'success',
+      title: 'Authentication Successful! ✅',
+      message: `Welcome, ${authenticatedUser.name}! Your Gmail has been securely registered in our database.`
+    });
+
+    return { success: true, message: 'Successfully authenticated!' };
   };
 
   const loginWithFacebook = async (customName?: string, customEmail?: string): Promise<boolean> => {
@@ -1370,6 +1560,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         getProductReviews,
         currentUser,
         users,
+        firestoreCustomers,
+        refreshFirestoreCustomers,
+        sendEmailAuthCode,
+        verifyEmailCodeAndLogin,
         login,
         loginWithGoogle,
         loginWithFacebook,

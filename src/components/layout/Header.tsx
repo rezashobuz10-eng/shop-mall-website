@@ -27,7 +27,9 @@ import {
   Gift,
   Star,
   Scale,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  Database
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
 import { useStore } from '../../context/StoreContext';
@@ -496,6 +498,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           <GoogleLogo className="w-2.5 h-2.5" />
                           <span>Gmail</span>
+                        </span>
+                      )}
+                      {currentUser.authMethod === 'email_code' && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          <span>Code Verified</span>
                         </span>
                       )}
                       {currentUser.authProvider === 'facebook' && (

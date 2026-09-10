@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default fallback rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Health check collection
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Customers collection where verified Gmails are stored
+    match /customers/{customerId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if false;
+    }
+
+    // Temporary auth verification codes sent to email
+    match /auth_codes/{codeId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
+  }
+}

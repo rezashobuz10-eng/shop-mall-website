@@ -25,7 +25,8 @@ import {
   Mail,
   RefreshCw,
   Inbox,
-  AlertTriangle
+  AlertTriangle,
+  MessageCircle
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { OrderTrackingModal } from '../components/common/OrderTrackingModal';
@@ -35,7 +36,7 @@ import { ShopNexaOrderEmailNotice } from '../components/common/ShopNexaOrderEmai
 import { soundEngine } from '../utils/audioFeedback';
 import { FALLBACK_PRODUCT_IMAGE, handleImageError, sanitizeImageUrl } from '../utils/imageUtils';
 import { extractPaymentDetails } from '../utils/paymentValidation';
-import { getGmailComposeUrl, dispatchShopNexaOrderEmail } from '../lib/firebase';
+import { getGmailComposeUrl, getWhatsAppShareUrl, dispatchShopNexaOrderEmail } from '../lib/firebase';
 import { Order } from '../types';
 
 export const ThankYouPage: React.FC = () => {
@@ -421,6 +422,20 @@ export const ThankYouPage: React.FC = () => {
                 </a>
 
                 <a
+                  href={getWhatsAppShareUrl(
+                    order.shippingAddress?.phone,
+                    `প্রিয় ${customerName}, ShopNexa-তে আপনার অর্ডার কনফার্মেশন কোড: *${confirmationCode}* (অর্ডার #${orderNum})। মোট মূল্য: ৳${order.total.toLocaleString()}। ট্র্যাকিং: ${trackingNum}`
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-white" />
+                  <span>হোয়াটসঅ্যাপে কোড সেভ করুন (WhatsApp)</span>
+                  <ExternalLink className="w-3 h-3 text-emerald-200" />
+                </a>
+
+                <a
                   href={getGmailComposeUrl(
                     customerEmail,
                     `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${confirmationCode} (Order #${orderNum})`,
@@ -430,7 +445,7 @@ export const ThankYouPage: React.FC = () => {
                   rel="noopener noreferrer"
                   className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <span>জিমেইল থেকে কম্পোজ / ফরোয়ার্ড করুন</span>
+                  <span>জিমেইল থেকে কম্পোজ</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>

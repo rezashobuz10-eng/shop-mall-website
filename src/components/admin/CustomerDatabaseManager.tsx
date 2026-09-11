@@ -19,7 +19,10 @@ import {
   Copy,
   Check,
   Package,
-  Inbox
+  Inbox,
+  MessageCircle,
+  HelpCircle,
+  X
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import {
@@ -29,6 +32,7 @@ import {
   fetchOrderNotificationsFromFirestore,
   dispatchShopNexaOrderEmail,
   getGmailComposeUrl,
+  getWhatsAppShareUrl,
   checkEmailConfigStatus
 } from '../../lib/firebase';
 import { OrderNotification } from '../../types';
@@ -53,6 +57,8 @@ export const CustomerDatabaseManager: React.FC = () => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [resendingOrderId, setResendingOrderId] = useState<string | null>(null);
   const [emailConfig, setEmailConfig] = useState<{ configured: boolean; senderEmail?: string; provider?: string }>({ configured: false });
+  const [showAppPasswordGuide, setShowAppPasswordGuide] = useState(false);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
 
   // Load order notifications & SMTP status on mount
   useEffect(() => {
@@ -317,6 +323,39 @@ export const CustomerDatabaseManager: React.FC = () => {
     }
   };
 
+  const handleSendTestEmail = async () => {
+    setIsSendingTestEmail(true);
+    try {
+      const res = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: 'rezashobuz10@gmail.com' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        addToast({
+          type: 'success',
+          title: 'টেস্ট ইমেইল সফলভাবে পাঠানো হয়েছে! 🎉',
+          message: 'rezashobuz10@gmail.com ঠিকানায় টেস্ট ইমেইল পৌঁছেছে। গুগল কানেকশন সক্রিয়!'
+        });
+      } else {
+        addToast({
+          type: 'error',
+          title: 'টেস্ট ইমেইল ব্যর্থ',
+          message: data.error || 'ইমেইল পাঠাতে সমস্যা হয়েছে।'
+        });
+      }
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'সার্ভার ত্রুটি',
+        message: 'ইমেইল সার্ভিস রেসপন্স করছে না।'
+      });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Database Banner Card */}
@@ -527,7 +566,27 @@ export const CustomerDatabaseManager: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleSendTestEmail}
+                disabled={isSendingTestEmail}
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                title="Send test email to rezashobuz10@gmail.com to verify Google App Password"
+              >
+                <Mail className={`w-3.5 h-3.5 ${isSendingTestEmail ? 'animate-spin' : ''}`} />
+                <span>{isSendingTestEmail ? 'পাঠানো হচ্ছে...' : 'টেস্ট ইমেইল পাঠান (Test Email)'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAppPasswordGuide(true)}
+                className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-slate-950" />
+                <span>Google App Password গাইড</span>
+              </button>
+
               <a
                 href="https://mail.google.com/mail/u/0/#search/ShopNexa"
                 target="_blank"
@@ -758,6 +817,20 @@ export const CustomerDatabaseManager: React.FC = () => {
                           </button>
 
                           <a
+                            href={getWhatsAppShareUrl(
+                              item.phone,
+                              `প্রিয় ${item.customerName}, ShopNexa-তে আপনার অর্ডার কনফার্মেশন কোড: *${item.confirmationCode}* (অর্ডার #${item.orderNumber})। মোট মূল্য: ৳${item.total.toLocaleString()}। ধন্যবাদ!`
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200 transition-colors cursor-pointer flex items-center gap-1"
+                            title="Send code directly to customer's WhatsApp"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            <span>WhatsApp</span>
+                          </a>
+
+                          <a
                             href={getGmailComposeUrl(
                               item.customerEmail,
                               `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${item.confirmationCode} (Order #${item.orderNumber})`,
@@ -866,6 +939,133 @@ export const CustomerDatabaseManager: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google App Password & Zero-Setup Delivery Guide Modal */}
+      {showAppPasswordGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-white">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-500 text-slate-950 shrink-0 shadow-xs">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    গুগল অ্যাপ পাসওয়ার্ড (App Password) কেন আসেনি?
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    কারণসমূহ, সমাধানের সহজ ধাপ এবং পাসওয়ার্ড ছাড়া বিকল্প উপায়
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAppPasswordGuide(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-5 text-xs text-slate-700 leading-relaxed">
+              {/* Main Reason */}
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-rose-900 text-sm">
+                  <AlertCircle className="w-4 h-4 text-rose-600" />
+                  <span>প্রধান কারণ: ২-স্টেপ ভেরিফিকেশন (2-Step Verification) বন্ধ থাকা</span>
+                </div>
+                <p className="text-rose-800 text-[11px]">
+                  গুগলের নিরাপত্তা নীতি অনুসারে, যদি আপনার গুগল অ্যাকাউন্টে <strong>2-Step Verification</strong> চালু না থাকে, তাহলে গুগল অ্যাপ পাসওয়ার্ড অপশন দেখায় না অথবা বলে <em>"The setting you are looking for is not available"</em>।
+                </p>
+              </div>
+
+              {/* Steps to get it */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-slate-900 text-xs flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-slate-900 text-white inline-flex items-center justify-center text-[10px]">১</span>
+                  <span>গুগল অ্যাপ পাসওয়ার্ড পেতে নিচের ধাপগুলো অনুসরণ করুন:</span>
+                </h4>
+
+                <div className="space-y-2.5 pl-2 border-l-2 border-slate-200">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                    <span className="font-bold text-slate-900 block">ধাপ ১: ২-স্টেপ ভেরিফিকেশন অন করুন</span>
+                    <p className="text-slate-600 text-[11px]">
+                      আপনার ফোনে বা ব্রাউজারে নিচের লিংকে গিয়ে ২-স্টেপ ভেরিফিকেশন চালু করুন:
+                    </p>
+                    <a
+                      href="https://myaccount.google.com/signinoptions/two-step-verification"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-bold text-blue-600 hover:underline pt-1"
+                    >
+                      <span>গুগল ২-স্টেপ ভেরিফিকেশন চালু করুন</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                    <span className="font-bold text-slate-900 block">ধাপ ২: অ্যাপ পাসওয়ার্ড লিংকে সরাসরি প্রবেশ করুন</span>
+                    <p className="text-slate-600 text-[11px]">
+                      ২-স্টেপ অন করার পর সরাসরি নিচের অফিশিয়াল গুগল পেজে যান:
+                    </p>
+                    <a
+                      href="https://myaccount.google.com/apppasswords"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-bold text-amber-700 hover:underline pt-1"
+                    >
+                      <span>myaccount.google.com/apppasswords খুলুন</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                    <span className="font-bold text-slate-900 block">ধাপ ৩: নাম দিন এবং কোড পান</span>
+                    <p className="text-slate-600 text-[11px]">
+                      App name বক্সে <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono font-bold text-slate-800">ShopNexa</code> লিখুন এবং <strong>Create</strong> চাপুন। গুগল আপনাকে ১৬-অক্ষরের পাসওয়ার্ড প্রদর্শন করবে।
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Zero-Setup Alternatives */}
+              <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-white border border-emerald-200 rounded-2xl p-4 space-y-2.5">
+                <span className="font-extrabold text-emerald-900 text-xs block">
+                  💡 কোনো পাসওয়ার্ড ছাড়া ঝামেলামুক্ত বিকল্প উপায়:
+                </span>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex items-start gap-2 text-[11px]">
+                    <span className="font-bold text-emerald-700 shrink-0">১. WhatsApp মেসেজ:</span>
+                    <span>অর্ডারের পাশে থাকা <strong>'WhatsApp'</strong> বাটনে ক্লিক করলেই কোনো পাসওয়ার্ড ছাড়া ১-ক্লিকে গ্রাহকের ফোনে অর্ডার কোড চলে যাবে।</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[11px]">
+                    <span className="font-bold text-emerald-700 shrink-0">২. Gmail Compose:</span>
+                    <span><strong>'Compose'</strong> বাটন চাপলে আপনার ডিভাইসের সাধারণ জিমেইল স্বয়ংক্রিয়ভাবে কোডসহ খুলে যাবে, কোনো ব্যাকএন্ড কনফিগারেশনের প্রয়োজন নেই।</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[11px]">
+                    <span className="font-bold text-emerald-700 shrink-0">৩. লাইভ স্ক্রিন কোড:</span>
+                    <span>গ্রাহক অর্ডার সম্পন্ন করা মাত্রই থ্যাংক ইউ পেজে বড় করে ৬-সংখ্যার কোড দেখতে পারেন এবং কপি করে নিতে পারেন।</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAppPasswordGuide(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-xs transition-colors"
+              >
+                বুঝেছি, বন্ধ করুন
+              </button>
+            </div>
           </div>
         </div>
       )}

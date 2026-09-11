@@ -32,6 +32,12 @@ import { SellerDashboardPage } from './pages/SellerDashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AuthPage } from './pages/AuthPage';
 import { AccountPage } from './pages/AccountPage';
+import { LoginPage } from './pages/LoginPage';
+import { SignUpPage } from './pages/SignUpPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { WishlistPage } from './pages/WishlistPage';
 import { MallPage } from './pages/MallPage';
 import { FlashSalePage } from './pages/FlashSalePage';
@@ -113,9 +119,15 @@ const AppContent: React.FC = () => {
           <Route path="/store/:id" element={<SellerStorePage />} />
           <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
           <Route path="/admin" element={<AdminDashboardPage />} />
-          <Route path="/login" element={<AuthPage />} />
-          <Route path="/register" element={<AuthPage />} />
-          <Route path="/account" element={<AccountPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/register" element={<SignUpPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/account" element={<DashboardPage />} />
+          <Route path="/legacy-auth" element={<AuthPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/mall" element={<MallPage />} />
           <Route path="/flash-sale" element={<FlashSalePage />} />

@@ -68,6 +68,7 @@ export interface User {
   authProvider?: 'email' | 'google' | 'facebook';
   authMethod?: 'email_code' | 'google' | 'facebook' | 'password';
   isVerified?: boolean;
+  email_verified?: boolean;
 }
 
 export interface Address {

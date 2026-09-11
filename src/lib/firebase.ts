@@ -277,6 +277,21 @@ export function getGmailComposeUrl(recipient: string, subject: string, body: str
 }
 
 /**
+ * Generate a WhatsApp message URL to instantly send the order code to customer's WhatsApp without any password setup
+ */
+export function getWhatsAppShareUrl(phone: string | undefined, message: string): string {
+  let cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  if (cleanPhone.startsWith('01') && cleanPhone.length === 11) {
+    cleanPhone = '88' + cleanPhone;
+  }
+  const encoded = encodeURIComponent(message);
+  if (cleanPhone.length >= 10) {
+    return `https://wa.me/${cleanPhone}?text=${encoded}`;
+  }
+  return `https://api.whatsapp.com/send?text=${encoded}`;
+}
+
+/**
  * Check backend SMTP configuration status
  */
 export async function checkEmailConfigStatus(): Promise<{ configured: boolean; senderEmail?: string; provider?: string }> {

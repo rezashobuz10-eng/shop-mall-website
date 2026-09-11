@@ -1,0 +1,82 @@
+{
+  "users": [
+    {
+      "id": "usr-admin-reza",
+      "name": "Reza Shobuz",
+      "email": "rezashobuz10@gmail.com",
+      "phone": "+880 1700-000000",
+      "role": "admin",
+      "email_verified": true,
+      "salt": "a1b2c3d4e5f67890a1b2c3d4e5f67890",
+      "password_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-01T00:00:00.000Z",
+      "updated_at": "2026-09-11T13:40:09.069Z",
+      "last_login": "2026-09-11T13:40:09.070Z",
+      "auth_provider": "google"
+    },
+    {
+      "id": "usr_1789133041431_ab4ade5b",
+      "name": "Tanvir Ahmed",
+      "email": "tanvir.test.shopnexa@gmail.com",
+      "phone": "",
+      "role": "customer",
+      "email_verified": false,
+      "salt": "470e5306c23de116e58956a1f0aade1e",
+      "password_hash": "f4bd1195676e8f7137b58da4f0622ca93cbc01f086796231f035335e24c8d2b5db7ee69f91bba403abe5f7b1ac30ae423b17bfccddb5395532def3c9f4d19b41",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-11T13:24:01.431Z",
+      "updated_at": "2026-09-11T13:24:01.431Z",
+      "auth_provider": "local"
+    },
+    {
+      "id": "usr_1789133608384_dc77755c",
+      "name": "jothy",
+      "email": "jothikhatun58@gmail.com",
+      "phone": "",
+      "role": "customer",
+      "email_verified": true,
+      "salt": "be82f031b501c2a4aecb85553bd6aa0e",
+      "password_hash": "c574c077722eebdca18dcacb75dc922210cfe2c43f42f88869e9a7c5532a92e98a4f88ac637f1ef562d98024e10273095b360220d611850158626db4c894ce2a",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-11T13:33:28.384Z",
+      "updated_at": "2026-09-11T13:53:55.075Z",
+      "auth_provider": "local",
+      "last_login": "2026-09-11T13:53:55.075Z"
+    }
+  ],
+  "otps": {
+    "tanvir.test.shopnexa@gmail.com_signup": {
+      "email": "tanvir.test.shopnexa@gmail.com",
+      "otp_hash": "58febb58bae7c8f8ba295dd23aea8a677667fc65f72847a60ef4cad659d06eac",
+      "purpose": "signup",
+      "expires_at": 1789133341432,
+      "attempts": 1,
+      "last_sent_at": 1789133041432,
+      "created_at": "2026-09-11T13:24:01.433Z",
+      "used": false
+    },
+    "jothikhatun58@gmail.com_signup": {
+      "email": "jothikhatun58@gmail.com",
+      "otp_hash": "cc9966c8f49f065d011f96985d35c783f983670a9402187b1b6fc2e76073b895",
+      "plain_code": "660143",
+      "purpose": "signup",
+      "expires_at": 1789135908612,
+      "attempts": 0,
+      "last_sent_at": 1789135308612,
+      "created_at": "2026-09-11T14:01:48.612Z",
+      "used": false
+    }
+  },
+  "reset_tokens": {},
+  "sessions": {
+    "34b82ecc5349fc799b66a7e0d8f2eed0f93038e725f83468ce3fb11efafc8e90": {
+      "token": "34b82ecc5349fc799b66a7e0d8f2eed0f93038e725f83468ce3fb11efafc8e90",
+      "user_id": "usr_1789133608384_dc77755c",
+      "email": "jothikhatun58@gmail.com",
+      "role": "customer",
+      "created_at": "2026-09-11T13:53:55.075Z",
+      "expires_at": 1789739635075
+    }
+  }
+}

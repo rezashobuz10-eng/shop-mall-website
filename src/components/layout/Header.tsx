@@ -516,6 +516,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   </div>
 
                   <Link
+                    to="/dashboard"
+                    onClick={() => setShowUserDropdown(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Dashboard & Security
+                  </Link>
+
+                  <Link
                     to="/account"
                     onClick={() => setShowUserDropdown(false)}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"

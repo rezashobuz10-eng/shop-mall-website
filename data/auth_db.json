@@ -2,17 +2,17 @@
   "users": [
     {
       "id": "usr-admin-reza",
-      "name": "Reza Shobuz",
+      "name": "jothy",
       "email": "rezashobuz10@gmail.com",
       "phone": "+880 1700-000000",
       "role": "admin",
       "email_verified": true,
-      "salt": "a1b2c3d4e5f67890a1b2c3d4e5f67890",
-      "password_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "salt": "5e68e61be88706db74e533fde8456998",
+      "password_hash": "3d8598dd3b270307437778a37ce832037606c8bac1c4b036ed5b24e475182cb23db2d79f8d6a1006ec0ca3b27e94e9a5c6108c2e86aa7358c50d2e8b88db001a",
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
       "created_at": "2026-09-01T00:00:00.000Z",
-      "updated_at": "2026-09-11T13:40:09.069Z",
-      "last_login": "2026-09-11T13:40:09.070Z",
+      "updated_at": "2026-09-11T14:20:15.871Z",
+      "last_login": "2026-09-11T14:20:18.275Z",
       "auth_provider": "google"
     },
     {
@@ -43,6 +43,35 @@
       "updated_at": "2026-09-11T13:53:55.075Z",
       "auth_provider": "local",
       "last_login": "2026-09-11T13:53:55.075Z"
+    },
+    {
+      "id": "usr_1789136149658_93ce1b86",
+      "name": "test user",
+      "email": "testunique12345@gmail.com",
+      "phone": "",
+      "role": "customer",
+      "email_verified": false,
+      "salt": "5ccda2fb13500b7989a130c7954a7d3b",
+      "password_hash": "9c2aa40bc1e72d3a8b3a28e5fd31031309f32a97c46ca6d9dc0de3386ed6c11357558592c21cad9de98a3a5d72d51778ff46b02c4f34675bd081bec4f24a9427",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-11T14:15:49.658Z",
+      "updated_at": "2026-09-11T14:15:49.658Z",
+      "auth_provider": "local"
+    },
+    {
+      "id": "usr_1789136672283_6bf7c2c5",
+      "name": "manik",
+      "email": "manikw58425@gmail.com",
+      "phone": "",
+      "role": "customer",
+      "email_verified": true,
+      "salt": "73d9e7105e9d56a384f3e3e9845449fa",
+      "password_hash": "b721972861475412b5423f0d0e351397cc68b85dad20124e55f0faf54fa4e0873c139bf1f5979723c51f3578bb58572ac88daaf0968ac40cf588cffac1275618",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-11T14:24:32.283Z",
+      "updated_at": "2026-09-11T14:27:02.460Z",
+      "auth_provider": "local",
+      "last_login": "2026-09-11T14:25:45.183Z"
     }
   ],
   "otps": {
@@ -66,17 +95,66 @@
       "last_sent_at": 1789135308612,
       "created_at": "2026-09-11T14:01:48.612Z",
       "used": false
+    },
+    "testunique12345@gmail.com_signup": {
+      "email": "testunique12345@gmail.com",
+      "otp_hash": "0229293723f8e1adc6f2a1d180db62449f7bfca79892e5779327ad9a462ec4b7",
+      "plain_code": "926049",
+      "purpose": "signup",
+      "expires_at": 1789136749659,
+      "attempts": 0,
+      "last_sent_at": 1789136149659,
+      "created_at": "2026-09-11T14:15:49.659Z",
+      "used": false
+    },
+    "rezashobuz10@gmail.com_signup": {
+      "email": "rezashobuz10@gmail.com",
+      "otp_hash": "ecb1b689ac59f90e3b46d74c2ef21c171d352be27c6a97763376a348bc08ae7f",
+      "plain_code": "481884",
+      "purpose": "signup",
+      "expires_at": 1789137727590,
+      "attempts": 0,
+      "last_sent_at": 1789137127590,
+      "created_at": "2026-09-11T14:32:07.590Z",
+      "used": false
+    },
+    "manikw58425@gmail.com_signup": {
+      "email": "manikw58425@gmail.com",
+      "otp_hash": "70e80a7553726988b87ef27161639122ea7c8e6f2c79f5fbbe97aaac6a81265e",
+      "plain_code": "988673",
+      "purpose": "signup",
+      "expires_at": 1789137422461,
+      "attempts": 0,
+      "last_sent_at": 1789136822461,
+      "created_at": "2026-09-11T14:27:02.461Z",
+      "used": false
     }
   },
   "reset_tokens": {},
   "sessions": {
-    "34b82ecc5349fc799b66a7e0d8f2eed0f93038e725f83468ce3fb11efafc8e90": {
-      "token": "34b82ecc5349fc799b66a7e0d8f2eed0f93038e725f83468ce3fb11efafc8e90",
-      "user_id": "usr_1789133608384_dc77755c",
-      "email": "jothikhatun58@gmail.com",
-      "role": "customer",
-      "created_at": "2026-09-11T13:53:55.075Z",
-      "expires_at": 1789739635075
+    "745e5a7d6f6caec785573678c790418789f395494ec122c6003abdef7a4763c3": {
+      "token": "745e5a7d6f6caec785573678c790418789f395494ec122c6003abdef7a4763c3",
+      "user_id": "usr-admin-reza",
+      "email": "rezashobuz10@gmail.com",
+      "role": "admin",
+      "created_at": "2026-09-11T14:15:37.362Z",
+      "expires_at": 1789740937362
+    },
+    "210065c792196f4c6038d6a1eeb2255426cba8cee8af1f35cf489495181e5594": {
+      "token": "210065c792196f4c6038d6a1eeb2255426cba8cee8af1f35cf489495181e5594",
+      "user_id": "usr-admin-reza",
+      "email": "rezashobuz10@gmail.com",
+      "role": "admin",
+      "created_at": "2026-09-11T14:20:15.872Z",
+      "expires_at": 1789741215872
+    },
+    "ee9e5bd7ba6cccc7ccbd37f7b478b73ce874ed11d417731e8379f6640c1c4589": {
+      "token": "ee9e5bd7ba6cccc7ccbd37f7b478b73ce874ed11d417731e8379f6640c1c4589",
+      "user_id": "usr-admin-reza",
+      "email": "rezashobuz10@gmail.com",
+      "role": "admin",
+      "created_at": "2026-09-11T14:20:18.275Z",
+      "expires_at": 1789741218275
     }
   }
 }

@@ -180,7 +180,7 @@ app.post('/api/send-order-email', async (req, res) => {
     const formattedTotal = total ? Number(total).toLocaleString() : '0';
     const tracking = trackingNumber || `STF-${num.replace(/[^0-9]/g, '').slice(-6)}`;
 
-    const subject = `[ShopNexa] অর্ডার কনফার্মেশন কোড: ${code} (Order #${num})`;
+    const subject = `Order Confirmed #${num} - ShopNexa Verification Code: ${code}`;
     const sender = getValidEmailUser();
 
     const htmlContent = `
@@ -285,11 +285,17 @@ app.post('/api/send-order-email', async (req, res) => {
 
     if (transporter) {
       const info = await transporter.sendMail({
-        from: `"ShopNexa Order Desk" <${sender}>`,
+        from: `"ShopNexa Orders" <${sender}>`,
         to: recipient,
+        replyTo: sender,
+        headers: {
+          'Auto-Submitted': 'auto-generated',
+          'X-Auto-Response-Suppress': 'All',
+          'List-Unsubscribe': `<mailto:${sender}?subject=unsubscribe>`
+        },
         subject,
         html: htmlContent,
-        text: `ShopNexa Order Confirmation: Your code is ${code} for Order #${num}. Total: ৳${formattedTotal}. Tracking: ${tracking}`
+        text: `ShopNexa Order Confirmation: Your verification code is ${code} for Order #${num}. Total: ৳${formattedTotal}. Tracking: ${tracking}. Helpline: +880 1700-000000. ShopNexa eCommerce Ltd.`
       });
 
       console.log(`[ShopNexa Mailer] Real email dispatched via SMTP to ${recipient}: ${info.messageId}`);
@@ -323,7 +329,7 @@ app.post('/api/send-order-email', async (req, res) => {
   }
 });
 
-// Helper to send security OTP email
+// Helper to send security OTP email (optimized for Gmail Primary Inbox delivery)
 async function dispatchOTPEmail(email: string, code: string, title: string, description: string, userName?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const transporter = getEmailTransporter();
   const sender = getValidEmailUser();
@@ -333,24 +339,27 @@ async function dispatchOTPEmail(email: string, code: string, title: string, desc
   }
 
   try {
+    // Subject line matches Google and Apple OTP pattern to ensure placement in Primary Inbox
+    const subject = `${code} is your ShopNexa verification code`;
+
     const info = await transporter.sendMail({
-      from: `"ShopNexa" <${sender}>`,
+      from: `"ShopNexa Security" <${sender}>`,
       to: email,
       replyTo: sender,
-      priority: 'high',
       headers: {
-        'X-Priority': '1',
-        'X-MSMail-Priority': 'High',
-        'Importance': 'high'
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'All',
+        'Precedence': 'bulk',
+        'List-Unsubscribe': `<mailto:${sender}?subject=unsubscribe>`
       },
-      subject: `ShopNexa Security Code: ${code}`,
+      subject,
       html: buildOTPEmailHTML({
         name: userName,
         code,
         purposeTitle: title,
         purposeDescription: description
       }),
-      text: `Your ShopNexa verification code is: ${code}\n\nThis code will expire in 10 minutes. If you did not request this, you can ignore this email.\n\nShopNexa Bangladesh`
+      text: `Your ShopNexa verification code is: ${code}\n\nThis verification code expires in 10 minutes. Please enter this code to complete your verification.\n\nIf you did not request this, your account remains secure and you can safely disregard this email.\n\nShopNexa eCommerce Ltd., Gulshan, Dhaka, Bangladesh`
     });
 
     console.log(`[ShopNexa Auth Mailer] Real email dispatched to ${email} (MsgId: ${info.messageId})`);
@@ -417,23 +426,16 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 
     const existingUser = findUserByEmail(cleanEmail);
-    if (existingUser && existingUser.email_verified) {
-      return res.status(400).json({
-        success: false,
-        error: 'An account with this email already exists. Please log in.'
-      });
-    }
-
     let user: any;
     if (existingUser) {
-      // User exists but not verified yet - update password and resend OTP
+      // Allow existing user to update password/name via verified OTP flow
       const { salt, hash } = hashPassword(password);
       user = updateUser(existingUser.id, {
-        name: cleanName,
+        name: cleanName || existingUser.name,
         phone: phone || existingUser.phone,
         password_hash: hash,
         salt,
-        role: role || existingUser.role
+        role: existingUser.role === 'admin' ? 'admin' : (role || existingUser.role)
       });
     } else {
       user = createUser({
@@ -934,12 +936,28 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.use('*', (req, res) => {
-      if (req.originalUrl.startsWith('/api')) {
+      if (req.originalUrl.startsWith('/api') || req.path.startsWith('/api')) {
         return res.status(404).json({ success: false, error: 'API route not found' });
       }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Global Express error handler to guarantee API responses are always JSON
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('[Express Global Error]', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    const isApi = req.originalUrl.startsWith('/api') || req.path.startsWith('/api');
+    if (isApi || req.accepts('json')) {
+      return res.status(err.status || 500).json({
+        success: false,
+        error: err.message || 'Internal server error. Please try again.'
+      });
+    }
+    next(err);
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`ShopNexa Full-Stack Server running on port ${PORT}`);

@@ -390,84 +390,80 @@ export function destroySession(token: string): void {
   }
 }
 
-// Email notification content generator
+// Email notification content generator (engineered for Gmail Primary Inbox deliverability)
 export function buildOTPEmailHTML(params: {
   name?: string;
   code: string;
   purposeTitle: string;
   purposeDescription: string;
 }): string {
-  return `
-<!DOCTYPE html>
-<html>
+  const currentYear = new Date().getFullYear();
+  return `<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ShopNexa Security Verification</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${params.code} is your ShopNexa verification code</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 30px 10px;">
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <!-- Gmail Inbox Preview Snippet (Preheader) -->
+  <div style="display: none; font-size: 1px; color: #f8fafc; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all;">
+    ${params.code} is your ShopNexa security verification code. Enter this code to verify your account.
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 32px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 520px; background-color: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <table role="presentation" width="100%" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden;">
           
-          <!-- Header -->
+          <!-- Header Banner -->
           <tr>
-            <td style="padding: 28px 32px 20px 32px; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); text-align: center;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td align="center">
-                    <span style="font-size: 26px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">Shop<span style="color: #fed7aa;">Nexa</span></span>
-                    <span style="display: block; font-size: 11px; color: #ffedd5; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;">Official Security Center</span>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding: 24px 32px; background-color: #ea580c; text-align: center;">
+              <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Shop<span style="color: #fed7aa;">Nexa</span></span>
+              <span style="display: block; font-size: 11px; color: #ffedd5; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 3px;">Account Security</span>
             </td>
           </tr>
 
           <!-- Main Content -->
           <tr>
-            <td style="padding: 32px;">
-              <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 800; color: #0f172a; text-align: center;">
+            <td style="padding: 32px 30px;">
+              <h1 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 700; color: #0f172a; text-align: center;">
                 ${params.purposeTitle}
-              </h2>
+              </h1>
               
-              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: center;">
                 ${params.name ? `Hello <strong>${params.name}</strong>,<br>` : ''}
                 ${params.purposeDescription}
               </p>
 
               <!-- OTP Code Display Card -->
-              <div style="background-color: #f1f5f9; border: 2px dashed #ea580c; border-radius: 14px; padding: 20px; text-align: center; margin: 24px 0;">
-                <span style="display: block; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">
-                  Your 6-Digit Verification Code
-                </span>
-                <span style="display: block; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #ea580c; font-family: monospace;">
-                  ${params.code}
-                </span>
-              </div>
-
-              <!-- Security Information -->
-              <table role="presentation" width="100%" style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 12px; padding: 14px; margin-bottom: 24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0;">
                 <tr>
-                  <td style="font-size: 12px; line-height: 1.6; color: #9a3412;">
-                    ⏱️ <strong>Expires in 5 minutes:</strong> This code can only be used once.<br>
-                    🔒 <strong>Keep it private:</strong> ShopNexa staff will never ask for your verification code.
+                  <td align="center" style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 18px 24px;">
+                    <span style="display: block; font-size: 11px; font-weight: 700; color: #9a3412; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">
+                      Verification Code
+                    </span>
+                    <span style="display: block; font-size: 36px; font-weight: 800; letter-spacing: 6px; color: #ea580c; font-family: Consolas, 'Courier New', monospace;">
+                      ${params.code}
+                    </span>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center; line-height: 1.5;">
-                If you did not make this request on ShopNexa, please ignore this email. Your account remains secure.
+              <!-- Expiry & Safety Notice -->
+              <p style="margin: 16px 0 0 0; font-size: 13px; line-height: 1.6; color: #64748b; text-align: center;">
+                This code expires in 10 minutes. Please do not share this code with anyone. ShopNexa will never ask for your code over phone or chat.
               </p>
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer & CAN-SPAM Compliance -->
           <tr>
-            <td style="padding: 20px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
-              &copy; ${new Date().getFullYear()} ShopNexa Bangladesh. All rights reserved.<br>
-              Everything You Need, One Place.
+            <td style="padding: 20px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;">
+              ShopNexa eCommerce Ltd. &bull; Gulshan, Dhaka, Bangladesh<br>
+              This is an automated transactional security message. If you did not make this request, you can safely disregard this email.<br>
+              &copy; ${currentYear} ShopNexa. All rights reserved.
             </td>
           </tr>
 
@@ -476,6 +472,5 @@ export function buildOTPEmailHTML(params: {
     </tr>
   </table>
 </body>
-</html>
-  `;
+</html>`;
 }

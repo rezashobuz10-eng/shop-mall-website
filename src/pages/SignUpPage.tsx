@@ -113,7 +113,27 @@ export const SignUpPage: React.FC = () => {
         {errorMessage && (
           <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in duration-200">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <p className="font-semibold leading-relaxed">{errorMessage}</p>
+            <div className="flex-1">
+              <p className="font-semibold leading-relaxed">{errorMessage}</p>
+              {errorMessage.toLowerCase().includes('already exists') && (
+                <div className="mt-2 pt-2 border-t border-rose-200/60 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/login?email=${encodeURIComponent(email.trim())}`)}
+                    className="font-bold text-orange-600 hover:text-orange-700 underline cursor-pointer"
+                  >
+                    Log In Instead →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/forgot-password?email=${encodeURIComponent(email.trim())}`)}
+                    className="font-medium text-slate-600 hover:text-slate-800 underline cursor-pointer"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

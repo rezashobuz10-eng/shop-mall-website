@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Mail, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, ShieldCheck, Clock, Loader2, ArrowLeft } from 'lucide-react';
 import { Logo } from '../components/common/Logo';
 import { useStore } from '../context/StoreContext';
+import { safeFetchJson } from '../lib/api';
 
 export const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -37,14 +38,13 @@ export const VerifyEmailPage: React.FC = () => {
     setIsFetchingCode(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(`/api/auth/latest-otp?email=${encodeURIComponent(cleanEmail)}&purpose=${purposeParam}`);
-      const data = await res.json();
+      const data = await safeFetchJson(`/api/auth/latest-otp?email=${encodeURIComponent(cleanEmail)}&purpose=${purposeParam}`);
       if (data.success && data.code) {
         const chars = data.code.split('').slice(0, 6);
         setDigits(chars);
         setSuccessMessage(`Latest verification code loaded (${data.code}). Click "Verify & Activate Account" below!`);
       } else {
-        setErrorMessage(data.message || 'No active code found. Please click Resend Code.');
+        setErrorMessage(data.message || data.error || 'No active code found. Please click Resend Code.');
       }
     } catch (err: any) {
       setErrorMessage('Could not load code assistant. Please check Gmail.');
@@ -255,17 +255,29 @@ export const VerifyEmailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Gmail Spam/Inbox Important Guidance Banner */}
-        <div className="my-3 p-3.5 bg-amber-50/90 border border-amber-200 rounded-2xl text-left text-xs text-amber-900 shadow-sm flex items-start gap-2.5">
-          <Mail className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-bold text-amber-950">মেইল ইনবক্সে না পেলে Spam ফোল্ডার চেক করুন</p>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
-              জিমেইলের সিকিউরিটি ফিল্টারের কারণে ভেরিফিকেশন মেইল <strong>Spam (স্প্যাম)</strong> অথবা <strong>Promotions (প্রোমোশনস)</strong> ফোল্ডারে জমা হতে পারে।
+        {/* Gmail Primary Inbox Delivery Guidance Banner */}
+        <div className="my-3 p-3.5 bg-blue-50/90 border border-blue-200 rounded-2xl text-left text-xs text-blue-900 shadow-sm flex items-start gap-2.5">
+          <Mail className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+          <div className="space-y-1.5 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-bold text-blue-950">মেইলটি সরাসরি Inbox-এ পাওয়ার উপায়</p>
+              <a
+                href={`https://mail.google.com/mail/u/0/#search/in%3Aanywhere+ShopNexa`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 shrink-0"
+              >
+                Open Gmail ↗
+              </a>
+            </div>
+            <p className="text-[11px] text-blue-800 leading-relaxed">
+              আপনার জিমেইলের <strong>Primary Inbox</strong> অথবা <strong>All Mail</strong> চেক করুন। যদি প্রথমবার মেইলটি <em>Spam</em> ফোল্ডারে যায়, তবে মেইলটি ওপেন করে <strong>"Report not spam"</strong> অথবা <strong>"Move to Inbox"</strong> সিলেক্ট করুন। এতে ভবিষ্যতে সকল ShopNexa কোড সরাসরি মূল ইনবক্সে আসবে।
             </p>
-            <p className="text-[10px] text-amber-700 font-mono">
-              From: rezashobuz10@gmail.com (ShopNexa)
-            </p>
+            <div className="flex items-center gap-2 text-[10px] text-blue-700 font-mono">
+              <span>প্রেরক: rezashobuz10@gmail.com</span>
+              <span>&bull;</span>
+              <span>বিষয়: &lt;কোড&gt; is your ShopNexa verification code</span>
+            </div>
           </div>
         </div>
 
@@ -388,9 +400,9 @@ export const VerifyEmailPage: React.FC = () => {
                 <span>Gmail-এ কোড খুঁজে পাওয়ার ৩টি সহজ উপায়:</span>
               </p>
               <ol className="list-decimal list-inside text-slate-600 space-y-1.5 text-[11px] leading-relaxed">
-                <li><strong>Spam / স্প্যাম ফোল্ডার:</strong> Gmail অ্যাপ ওপেন করে বামের মেনু (☰) থেকে <em>Spam</em> ফোল্ডার চেক করুন।</li>
-                <li><strong>Promotions / অল মেইল:</strong> জিমেইলের <em>Promotions</em> অথবা <em>All Mail</em> ট্যাব চেক করুন।</li>
-                <li><strong>সার্চবারে সার্চ দিন:</strong> জিমেইল সার্চবারে <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-800 font-semibold">from:rezashobuz10@gmail.com</code> অথবা <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-800 font-semibold">ShopNexa</code> লিখে খুঁজুন।</li>
+                <li><strong>ইনবক্স নিশ্চিত করতে (১ ক্লিক):</strong> মেইলটি যদি স্প্যামে দেখতে পান, তবে ভেতরে ঢুকে <strong>"Report not spam"</strong> চাপুন। এতে জিমেইল এই প্রেরককে নিরাপদ তালিকাভুক্ত করে সবসময় ইনবক্সে ডেলিভারি নিশ্চিত করবে।</li>
+                <li><strong>Gmail Filter দিয়ে ১০০% ইনবক্স গ্যারান্টি:</strong> জিমেইলে <em>rezashobuz10@gmail.com</em> এর জন্য একটি ফিল্টার বানিয়ে <em>"Never send it to Spam"</em> ও <em>"Categorize as: Primary"</em> সেট করতে পারেন।</li>
+                <li><strong>দ্রুত সার্চ:</strong> জিমেইল সার্চবারে <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-800 font-semibold">in:anywhere ShopNexa</code> লিখে সার্চ করলে সব ফোল্ডার মিলিয়ে কোডটি সাথে সাথে পাওয়া যাবে।</li>
               </ol>
 
               <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">

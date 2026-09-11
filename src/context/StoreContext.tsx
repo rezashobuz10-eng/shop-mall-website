@@ -37,6 +37,7 @@ import {
 } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { OWNER_ADMIN_EMAIL } from '../utils/adminSecurity';
+import { safeFetchJson } from '../lib/api';
 
 interface StoreContextType {
   // Products
@@ -373,40 +374,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const token = localStorage.getItem('shopnexa_auth_token');
     if (token) {
-      fetch('/api/auth/me', {
+      safeFetchJson('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.authenticated && data.user) {
-            const u: User = {
-              id: data.user.id,
-              name: data.user.name,
-              email: data.user.email,
-              phone: data.user.phone || '01700000000',
-              avatar:
-                data.user.avatar ||
-                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-              role: data.user.role || 'customer',
-              joinedDate: 'Member',
-              addresses: [],
-              isVerified: true,
-              email_verified: true,
-              authMethod: data.user.auth_provider === 'google' ? 'google' : 'email_code',
-              authProvider: data.user.auth_provider === 'google' ? 'google' : 'email'
-            };
-            setCurrentUser(u);
-            setUsers((prev) =>
-              prev.some((x) => x.email.toLowerCase() === u.email.toLowerCase())
-                ? prev.map((x) => (x.email.toLowerCase() === u.email.toLowerCase() ? u : x))
-                : [u, ...prev]
-            );
-          } else {
-            localStorage.removeItem('shopnexa_auth_token');
-            setSessionToken(null);
-          }
-        })
-        .catch(() => {});
+      }).then((data) => {
+        if (data.success && data.authenticated && data.user) {
+          const u: User = {
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            phone: data.user.phone || '01700000000',
+            avatar:
+              data.user.avatar ||
+              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            role: data.user.role || 'customer',
+            joinedDate: 'Member',
+            addresses: [],
+            isVerified: true,
+            email_verified: true,
+            authMethod: data.user.auth_provider === 'google' ? 'google' : 'email_code',
+            authProvider: data.user.auth_provider === 'google' ? 'google' : 'email'
+          };
+          setCurrentUser(u);
+          setUsers((prev) =>
+            prev.some((x) => x.email.toLowerCase() === u.email.toLowerCase())
+              ? prev.map((x) => (x.email.toLowerCase() === u.email.toLowerCase() ? u : x))
+              : [u, ...prev]
+          );
+        } else if (data.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('shopnexa_auth_token');
+          setSessionToken(null);
+        }
+      });
     }
   }, []);
   const [recentlyViewed, setRecentlyViewed] = useState<Product[]>(() =>
@@ -1418,13 +1417,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     role?: 'customer' | 'seller';
   }): Promise<{ success: boolean; message: string; error?: string; email?: string }> => {
     try {
-      const res = await fetch('/api/auth/signup', {
+      const json = await safeFetchJson('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return { success: false, message: json.error || 'Registration failed', error: json.error };
       }
       addToast({
@@ -1432,7 +1430,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         title: 'Verification Code Dispatched 📧',
         message: `A 6-digit code has been sent directly to ${data.email}.`
       });
-      return { success: true, message: json.message, email: json.email };
+      return { success: true, message: json.message || 'Verification code sent.', email: json.email };
     } catch (err: any) {
       return { success: false, message: err.message || 'Network error', error: err.message };
     }
@@ -1446,13 +1444,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     role?: 'customer' | 'seller';
   }): Promise<{ success: boolean; message: string; error?: string; token?: string; resetToken?: string; user?: User }> => {
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const json = await safeFetchJson('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return { success: false, message: json.error || 'Verification failed', error: json.error };
       }
       if (json.token && json.user) {
@@ -1506,13 +1503,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     purpose: 'signup' | 'login' | 'reset_password'
   ): Promise<{ success: boolean; message: string; error?: string; cooldownRemaining?: number }> => {
     try {
-      const res = await fetch('/api/auth/resend-otp', {
+      const json = await safeFetchJson('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, purpose })
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return {
           success: false,
           message: json.error || 'Failed to resend code',
@@ -1543,13 +1539,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     user?: User;
   }> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const json = await safeFetchJson('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         if (json.requiresVerification) {
           return {
             success: false,
@@ -1601,13 +1596,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const authForgotPassword = async (email: string): Promise<{ success: boolean; message: string; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const json = await safeFetchJson('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return { success: false, message: json.error || 'Failed to request reset', error: json.error };
       }
       addToast({
@@ -1627,13 +1621,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     newPassword: string;
   }): Promise<{ success: boolean; message: string; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const json = await safeFetchJson('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return { success: false, message: json.error || 'Failed to reset password', error: json.error };
       }
       addToast({
@@ -1671,13 +1664,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: false, error: 'Could not obtain verified Google account.' };
       }
 
-      const res = await fetch('/api/auth/google', {
+      const json = await safeFetchJson('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, avatar })
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         return { success: false, error: json.error || 'Google login failed' };
       }
 

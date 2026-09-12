@@ -222,21 +222,6 @@ export function updateUser(id: string, updates: Partial<AuthUser>): AuthUser | n
   return dbCache.users[index];
 }
 
-// In-memory cache for fast helper lookup
-const latestCodeMap = new Map<string, string>();
-
-export function getLatestOTP(email: string, purpose: 'signup' | 'login' | 'reset_password'): string | undefined {
-  const cleanEmail = email.trim().toLowerCase();
-  const key = `${cleanEmail}_${purpose}`;
-  const inMem = latestCodeMap.get(key);
-  if (inMem) return inMem;
-  const record = dbCache.otps[key];
-  if (record && !record.used && Date.now() < record.expires_at && record.plain_code) {
-    return record.plain_code;
-  }
-  return undefined;
-}
-
 // OTP methods
 export function createAndStoreOTP(
   email: string,
@@ -256,14 +241,12 @@ export function createAndStoreOTP(
 
   const code = generateRandomOTP();
   const otpHash = hashOTP(code);
-  latestCodeMap.set(key, code);
 
   dbCache.otps[key] = {
     email: cleanEmail,
     otp_hash: otpHash,
-    plain_code: code,
     purpose,
-    expires_at: now + 10 * 60 * 1000, // 10 minutes validity
+    expires_at: now + 5 * 60 * 1000, // 5 minutes validity as requested
     attempts: 0,
     last_sent_at: now,
     created_at: new Date().toISOString(),
@@ -292,7 +275,7 @@ export function verifyOTP(
   }
 
   if (Date.now() > record.expires_at) {
-    return { valid: false, error: 'This verification code has expired. Please request a new code.' };
+    return { valid: false, error: 'This verification code has expired (valid for 5 minutes). Please request a new code.' };
   }
 
   if (record.attempts >= 5) {
@@ -310,11 +293,9 @@ export function verifyOTP(
     };
   }
 
-  // Code is valid! Mark as used
+  // Code is valid! Mark as used immediately so it cannot be reused
   record.used = true;
   record.used_at = new Date().toISOString();
-  delete record.plain_code;
-  latestCodeMap.delete(key);
   persistDb();
 
   return { valid: true };
@@ -453,7 +434,7 @@ export function buildOTPEmailHTML(params: {
 
               <!-- Expiry & Safety Notice -->
               <p style="margin: 16px 0 0 0; font-size: 13px; line-height: 1.6; color: #64748b; text-align: center;">
-                This code expires in 10 minutes. Please do not share this code with anyone. ShopNexa will never ask for your code over phone or chat.
+                This code expires in 5 minutes. Please do not share this code with anyone. ShopNexa will never ask for your code over phone or chat.
               </p>
             </td>
           </tr>

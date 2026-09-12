@@ -2,16 +2,16 @@
   "users": [
     {
       "id": "usr-admin-reza",
-      "name": "jothy",
+      "name": "Shobuz Test",
       "email": "rezashobuz10@gmail.com",
       "phone": "+880 1700-000000",
       "role": "admin",
       "email_verified": true,
-      "salt": "5e68e61be88706db74e533fde8456998",
-      "password_hash": "3d8598dd3b270307437778a37ce832037606c8bac1c4b036ed5b24e475182cb23db2d79f8d6a1006ec0ca3b27e94e9a5c6108c2e86aa7358c50d2e8b88db001a",
+      "salt": "f66fcd19bba50f70ca8eb28bef71dd65",
+      "password_hash": "ad73aa65cdb797203f3fb7c339eb32032da2792ef4b77e3f116a2faa5cd2b7b93d10f73cd2820dd67fecb7227c3d56341d469cda10eb157a05761743550ddc90",
       "avatar": "https://lh3.googleusercontent.com/a/ACg8ocLXjiiZF24uHWgfbcy8WXTip11ugtjInNIrCYzDNpAJ7yQZg44=s96-c",
       "created_at": "2026-09-01T00:00:00.000Z",
-      "updated_at": "2026-09-12T12:23:28.573Z",
+      "updated_at": "2026-09-12T12:50:28.965Z",
       "last_login": "2026-09-12T12:23:28.573Z",
       "auth_provider": "google"
     },
@@ -153,13 +153,12 @@
     },
     "rezashobuz10@gmail.com_signup": {
       "email": "rezashobuz10@gmail.com",
-      "otp_hash": "ecb1b689ac59f90e3b46d74c2ef21c171d352be27c6a97763376a348bc08ae7f",
-      "plain_code": "481884",
+      "otp_hash": "00350ecdbf1c73c44065ae3482c033b52616ceb0ec23633390b2eac16dccba5a",
       "purpose": "signup",
-      "expires_at": 1789137727590,
-      "attempts": 0,
-      "last_sent_at": 1789137127590,
-      "created_at": "2026-09-11T14:32:07.590Z",
+      "expires_at": 1789217728966,
+      "attempts": 1,
+      "last_sent_at": 1789217428966,
+      "created_at": "2026-09-12T12:50:28.967Z",
       "used": false
     },
     "manikw58425@gmail.com_signup": {

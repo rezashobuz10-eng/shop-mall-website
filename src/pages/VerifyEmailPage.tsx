@@ -24,34 +24,9 @@ export const VerifyEmailPage: React.FC = () => {
   const [cooldown, setCooldown] = useState(60);
   const [isEditingEmail, setIsEditingEmail] = useState(!emailParam);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
-  const [isFetchingCode, setIsFetchingCode] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { authVerifyOTP, authResendOTP } = useStore();
-
-  const fetchLiveHelperCode = async () => {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      setErrorMessage('Please enter an email address first.');
-      return;
-    }
-    setIsFetchingCode(true);
-    setErrorMessage(null);
-    try {
-      const data = await safeFetchJson(`/api/auth/latest-otp?email=${encodeURIComponent(cleanEmail)}&purpose=${purposeParam}`);
-      if (data.success && data.code) {
-        const chars = data.code.split('').slice(0, 6);
-        setDigits(chars);
-        setSuccessMessage(`Latest verification code loaded (${data.code}). Click "Verify & Activate Account" below!`);
-      } else {
-        setErrorMessage(data.message || data.error || 'No active code found. Please click Resend Code.');
-      }
-    } catch (err: any) {
-      setErrorMessage('Could not load code assistant. Please check Gmail.');
-    } finally {
-      setIsFetchingCode(false);
-    }
-  };
 
   // Cooldown countdown
   useEffect(() => {
@@ -382,7 +357,7 @@ export const VerifyEmailPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Troubleshoot & Instant Helper Section */}
+        {/* Troubleshoot & Delivery Assistance Section */}
         <div className="mt-4 pt-3 border-t border-slate-100">
           <button
             type="button"
@@ -390,45 +365,20 @@ export const VerifyEmailPage: React.FC = () => {
             onClick={() => setShowTroubleshoot(!showTroubleshoot)}
             className="text-[11px] text-slate-500 hover:text-slate-800 font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors"
           >
-            <span>{showTroubleshoot ? '▲ Hide Delivery Help' : '▼ Gmail এ কোড আসছে না? (সহায়তা ও কোড সহকারী)'}</span>
+            <span>{showTroubleshoot ? '▲ Hide Delivery Tips' : '▼ Gmail এ ইমেইল খুঁজে পাচ্ছেন না? (সহায়তা ও টিপস)'}</span>
           </button>
 
           {showTroubleshoot && (
             <div className="mt-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs space-y-3 animate-in fade-in duration-200">
               <p className="font-bold text-slate-800 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-orange-600" />
-                <span>Gmail-এ কোড খুঁজে পাওয়ার ৩টি সহজ উপায়:</span>
+                <span>Gmail-এ ভেরিফিকেশন কোড পাওয়ার সহজ উপায়:</span>
               </p>
-              <ol className="list-decimal list-inside text-slate-600 space-y-1.5 text-[11px] leading-relaxed">
-                <li><strong>ইনবক্স নিশ্চিত করতে (১ ক্লিক):</strong> মেইলটি যদি স্প্যামে দেখতে পান, তবে ভেতরে ঢুকে <strong>"Report not spam"</strong> চাপুন। এতে জিমেইল এই প্রেরককে নিরাপদ তালিকাভুক্ত করে সবসময় ইনবক্সে ডেলিভারি নিশ্চিত করবে।</li>
-                <li><strong>Gmail Filter দিয়ে ১০০% ইনবক্স গ্যারান্টি:</strong> জিমেইলে <em>rezashobuz10@gmail.com</em> এর জন্য একটি ফিল্টার বানিয়ে <em>"Never send it to Spam"</em> ও <em>"Categorize as: Primary"</em> সেট করতে পারেন।</li>
+              <ol className="list-decimal list-inside text-slate-600 space-y-2 text-[11px] leading-relaxed">
+                <li><strong>ইনবক্স নিশ্চিত করতে (১ ক্লিক):</strong> মেইলটি যদি স্প্যাম ফোল্ডারে দেখতে পান, তবে ভেতরে ঢুকে <strong>"Report not spam"</strong> চাপুন। এতে জিমেইল এই প্রেরককে নিরাপদ তালিকাভুক্ত করে সবসময় সরাসরি ইনবক্সে ডেলিভারি নিশ্চিত করবে।</li>
                 <li><strong>দ্রুত সার্চ:</strong> জিমেইল সার্চবারে <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-800 font-semibold">in:anywhere ShopNexa</code> লিখে সার্চ করলে সব ফোল্ডার মিলিয়ে কোডটি সাথে সাথে পাওয়া যাবে।</li>
+                <li><strong>রিসেন্ড করুন:</strong> ৬০ সেকেন্ড পর উপরের <strong>"Resend Verification Code"</strong> বাটনে ক্লিক করে একটি একদম নতুন কোড জেনারেট করে নিতে পারেন।</li>
               </ol>
-
-              <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">
-                <div className="text-[11px] text-slate-500">
-                  <span className="font-medium text-slate-700">প্রিভিউতে সরাসরি কোড চান?</span>
-                </div>
-                <button
-                  type="button"
-                  id="fetch-helper-code-btn"
-                  onClick={fetchLiveHelperCode}
-                  disabled={isFetchingCode}
-                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-[11px] shrink-0 inline-flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
-                >
-                  {isFetchingCode ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Loading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Auto-Fill Code</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           )}
         </div>

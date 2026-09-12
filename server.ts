@@ -22,8 +22,7 @@ import {
   recordFailedAttempt,
   clearFailedAttempts,
   verifyPassword,
-  hashPassword,
-  getLatestOTP
+  hashPassword
 } from './server/authService';
 
 dotenv.config();
@@ -47,19 +46,18 @@ app.use((req, res, next) => {
 // Initialize persistent auth database
 initAuthDb();
 
-// Helper to get sanitized Google App Password
+// Helper to get sanitized Google App Password or SMTP password
 function getValidAppPassword(): string {
-  const envPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').trim();
-  // If envPass contains '@' (like when email was mistakenly entered as password) or is too short, use verified app password
-  if (!envPass || envPass.includes('@') || envPass.length < 8) {
-    return 'ztitaoklqpxdubsf';
+  const envPass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD || '').trim();
+  if (envPass && !envPass.includes('@') && envPass.length >= 8) {
+    return envPass.replace(/\s+/g, '');
   }
-  return envPass.replace(/\s+/g, '');
+  return 'ztitaoklqpxdubsf';
 }
 
 // Helper to get sanitized sender email
 function getValidEmailUser(): string {
-  const envUser = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  const envUser = (process.env.SMTP_USER || process.env.GMAIL_USER || process.env.EMAIL_FROM || '').trim();
   if (envUser && envUser.includes('@')) {
     return envUser;
   }
@@ -75,23 +73,26 @@ function getEmailTransporter() {
     return null;
   }
 
-  // If using Gmail or user email is gmail, use service: 'gmail' for 100% reliable Google SMTP routing
-  if (user.endsWith('@gmail.com') || (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail'))) {
+  // If using Gmail or sender email is @gmail.com, use service: 'gmail'
+  const isGmail = user.endsWith('@gmail.com') || (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail'));
+  if (isGmail) {
     return nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user,
         pass
-      }
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
   }
 
-  // Fallback for custom SMTP server
+  // Custom SMTP server configuration
   let host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
-  if (host.includes('@') || !host.includes('.')) {
-    host = 'smtp.gmail.com';
-  }
-
   let port = parseInt(process.env.SMTP_PORT || '465', 10);
   if (isNaN(port) || port <= 0) {
     port = 465;
@@ -105,7 +106,13 @@ function getEmailTransporter() {
     auth: {
       user,
       pass
-    }
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000
   });
 }
 
@@ -341,76 +348,128 @@ app.post('/api/send-order-email', async (req, res) => {
 });
 
 // Helper to send security OTP email (optimized for Gmail Primary Inbox delivery)
-async function dispatchOTPEmail(email: string, code: string, title: string, description: string, userName?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+async function dispatchOTPEmail(
+  email: string,
+  code: string,
+  title: string,
+  description: string,
+  userName?: string
+): Promise<{ success: boolean; messageId?: string; provider?: string; error?: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const subject = `${code} is your ShopNexa verification code`;
+  const htmlContent = buildOTPEmailHTML({
+    name: userName,
+    code,
+    purposeTitle: title,
+    purposeDescription: description
+  });
+  const plainText = `Your ShopNexa verification code is: ${code}\n\nThis verification code expires in 5 minutes. Please enter this code to complete your verification.\n\nIf you did not request this, your account remains secure and you can safely disregard this email.\n\nShopNexa eCommerce Ltd., Gulshan, Dhaka, Bangladesh`;
+
+  // 1. Try Resend API if configured
+  const resendKey = (
+    process.env.RESEND_API_KEY ||
+    (process.env.EMAIL_API_KEY && process.env.EMAIL_API_KEY.startsWith('re_') ? process.env.EMAIL_API_KEY : '')
+  ).trim();
+
+  if (resendKey) {
+    try {
+      const fromAddress = process.env.EMAIL_FROM || 'ShopNexa Security <onboarding@resend.dev>';
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [cleanEmail],
+          subject,
+          html: htmlContent,
+          text: plainText
+        })
+      });
+      const data: any = await res.json();
+      if (res.ok && data && data.id) {
+        console.log(`[ShopNexa Mailer] Real email dispatched via Resend API to ${cleanEmail} (Id: ${data.id})`);
+        return { success: true, messageId: data.id, provider: 'Resend API' };
+      } else {
+        console.warn('[ShopNexa Mailer] Resend API error, trying SMTP fallback:', data?.message || res.statusText);
+      }
+    } catch (resendErr: any) {
+      console.warn('[ShopNexa Mailer] Resend request failed, trying SMTP fallback:', resendErr.message);
+    }
+  }
+
+  // 2. Try SendGrid API if configured
+  const sendgridKey = (process.env.SENDGRID_API_KEY || '').trim();
+  if (sendgridKey) {
+    try {
+      const fromAddress = process.env.EMAIL_FROM || getValidEmailUser();
+      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sendgridKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: cleanEmail }] }],
+          from: { email: fromAddress, name: 'ShopNexa Security' },
+          subject,
+          content: [
+            { type: 'text/plain', value: plainText },
+            { type: 'text/html', value: htmlContent }
+          ]
+        })
+      });
+      if (res.status >= 200 && res.status < 300) {
+        const msgId = res.headers.get('x-message-id') || `sg-${Date.now()}`;
+        console.log(`[ShopNexa Mailer] Real email dispatched via SendGrid to ${cleanEmail}`);
+        return { success: true, messageId: msgId, provider: 'SendGrid API' };
+      } else {
+        const errorText = await res.text();
+        console.warn('[ShopNexa Mailer] SendGrid API returned error, trying SMTP fallback:', errorText);
+      }
+    } catch (sgErr: any) {
+      console.warn('[ShopNexa Mailer] SendGrid request failed, trying SMTP fallback:', sgErr.message);
+    }
+  }
+
+  // 3. Nodemailer with Gmail SMTP / Custom SMTP
   const transporter = getEmailTransporter();
   const sender = getValidEmailUser();
   if (!transporter) {
-    console.warn('[ShopNexa Auth Mailer] SMTP transporter not configured');
-    return { success: false, error: 'SMTP transporter not configured' };
+    console.error('[ShopNexa Auth Mailer] No email transporter configured');
+    return { success: false, error: 'Email delivery service not configured. Please check SMTP settings.' };
   }
 
   try {
-    // Subject line matches Google and Apple OTP pattern to ensure placement in Primary Inbox
-    const subject = `${code} is your ShopNexa verification code`;
-
     const info = await transporter.sendMail({
       from: `"ShopNexa Security" <${sender}>`,
-      to: email,
+      to: cleanEmail,
       replyTo: sender,
       headers: {
-        'Auto-Submitted': 'auto-generated',
-        'X-Auto-Response-Suppress': 'All',
-        'Precedence': 'bulk',
-        'List-Unsubscribe': `<mailto:${sender}?subject=unsubscribe>`
+        'X-Priority': '1 (Highest)',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'High',
+        'X-Mailer': 'ShopNexa Security Dispatcher'
       },
       subject,
-      html: buildOTPEmailHTML({
-        name: userName,
-        code,
-        purposeTitle: title,
-        purposeDescription: description
-      }),
-      text: `Your ShopNexa verification code is: ${code}\n\nThis verification code expires in 10 minutes. Please enter this code to complete your verification.\n\nIf you did not request this, your account remains secure and you can safely disregard this email.\n\nShopNexa eCommerce Ltd., Gulshan, Dhaka, Bangladesh`
+      html: htmlContent,
+      text: plainText
     });
 
-    console.log(`[ShopNexa Auth Mailer] Real email dispatched to ${email} (MsgId: ${info.messageId})`);
-    return { success: true, messageId: info.messageId };
+    if (info.rejected && Array.isArray(info.rejected) && info.rejected.includes(cleanEmail)) {
+      console.error('[ShopNexa Auth Mailer] Recipient rejected by mail server:', cleanEmail);
+      return { success: false, error: `Mail server rejected recipient ${cleanEmail}.` };
+    }
+
+    console.log(`[ShopNexa Auth Mailer] Real email dispatched to ${cleanEmail} via SMTP (MsgId: ${info.messageId})`);
+    return { success: true, messageId: info.messageId, provider: 'Google Gmail SMTP' };
   } catch (err: any) {
-    console.error('[ShopNexa Auth Mailer] Failed to send email to', email, err);
+    console.error('[ShopNexa Auth Mailer] Failed to send email to', cleanEmail, err);
     return { success: false, error: err.message || 'SMTP delivery failed' };
   }
 }
-
-// Helper endpoint to check delivery status and retrieve latest OTP if email is delayed in spam
-app.get('/api/auth/latest-otp', (req, res) => {
-  const email = (req.query.email as string || '').trim().toLowerCase();
-  const purpose = (req.query.purpose as string || 'signup') as 'signup' | 'login' | 'reset_password';
-
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ success: false, error: 'Valid email is required' });
-  }
-
-  const code = getLatestOTP(email, purpose);
-  const sender = getValidEmailUser();
-
-  if (!code) {
-    return res.json({
-      success: false,
-      message: 'No active OTP in memory for this email. Please request a new code.',
-      senderEmail: sender
-    });
-  }
-
-  return res.json({
-    success: true,
-    code,
-    email,
-    purpose,
-    senderEmail: sender,
-    validityMinutes: 10,
-    notice: 'Please check your Gmail Spam or Promotions folder if not in Inbox.'
-  });
-});
 
 // --------------------------------------------------------------------------
 // AUTHENTICATION API ENDPOINTS
@@ -470,7 +529,7 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 
     // Send actual OTP to user's email
-    await dispatchOTPEmail(
+    const dispatchRes = await dispatchOTPEmail(
       cleanEmail,
       code,
       'Email Verification Code',
@@ -478,11 +537,19 @@ app.post('/api/auth/signup', async (req, res) => {
       cleanName
     );
 
+    if (!dispatchRes.success) {
+      console.error('[Auth SignUp Error] Failed to send verification email:', dispatchRes.error);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to deliver verification email to ${cleanEmail}: ${dispatchRes.error}. Please check your email address or try again.`
+      });
+    }
+
     // CRITICAL: NEVER expose OTP code in response!
     return res.json({
       success: true,
       email: cleanEmail,
-      message: `A 6-digit verification code has been sent to ${cleanEmail}.`
+      message: `A 6-digit verification code has been dispatched to ${cleanEmail}. Please check your Gmail Inbox or Spam folder.`
     });
   } catch (error: any) {
     console.error('[Auth SignUp Error]', error);
@@ -588,10 +655,18 @@ app.post('/api/auth/resend-otp', async (req, res) => {
 
     const dispatchRes = await dispatchOTPEmail(cleanEmail, code, title, desc, user?.name);
 
+    if (!dispatchRes.success) {
+      console.error('[Auth Resend OTP Error] Failed to send verification email:', dispatchRes.error);
+      return res.status(502).json({
+        success: false,
+        error: `Failed to deliver verification code to ${cleanEmail}: ${dispatchRes.error}. Please check your email address or try again.`
+      });
+    }
+
     return res.json({
       success: true,
-      message: `A fresh verification code has been sent to ${cleanEmail}. Please check your Inbox and Spam folder.`,
-      dispatched: dispatchRes.success,
+      message: `A fresh verification code has been dispatched to ${cleanEmail}. Please check your Gmail Inbox and Spam folder.`,
+      dispatched: true,
       messageId: dispatchRes.messageId
     });
   } catch (error: any) {
@@ -859,10 +934,9 @@ app.post('/api/auth/google', (req, res) => {
 
 // 4. Send 6-Digit Email Auth / Login Code
 app.post('/api/send-auth-code', async (req, res) => {
-
   try {
     const { email, code } = req.body;
-    const recipient = (email || '').trim();
+    const recipient = (email || '').trim().toLowerCase();
 
     if (!recipient || !recipient.includes('@') || !code) {
       return res.status(400).json({
@@ -871,43 +945,31 @@ app.post('/api/send-auth-code', async (req, res) => {
       });
     }
 
-    const transporter = getEmailTransporter();
-    const sender = getValidEmailUser();
+    const dispatchRes = await dispatchOTPEmail(
+      recipient,
+      code,
+      'Login Verification Code',
+      'Please enter this 6-digit one-time verification code to complete your login to ShopNexa.'
+    );
 
-    if (transporter) {
-      const info = await transporter.sendMail({
-        from: `"ShopNexa Security" <${sender}>`,
-        to: recipient,
-        subject: `[ShopNexa] Your Verification Code: ${code}`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 500px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-            <h2 style="color: #ea580c; margin-top: 0;">ShopNexa Login Verification</h2>
-            <p>Your 6-digit one-time login verification code is:</p>
-            <div style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #1e293b; background: #f8fafc; padding: 15px; text-align: center; border-radius: 8px;">
-              ${code}
-            </div>
-            <p style="color: #64748b; font-size: 12px; margin-top: 20px;">This code will expire in 10 minutes. If you did not request this code, please ignore this email.</p>
-          </div>
-        `,
-        text: `Your ShopNexa login verification code is: ${code}`
-      });
-
-      return res.json({
-        success: true,
-        delivered: true,
-        messageId: info.messageId
-      });
-    } else {
-      return res.json({
-        success: true,
+    if (!dispatchRes.success) {
+      return res.status(502).json({
+        success: false,
         delivered: false,
-        notice: 'SMTP credentials not configured.'
+        error: dispatchRes.error || 'Failed to dispatch verification code.'
       });
     }
+
+    return res.json({
+      success: true,
+      delivered: true,
+      messageId: dispatchRes.messageId,
+      provider: dispatchRes.provider
+    });
   } catch (error: any) {
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message || 'Failed to process request'
     });
   }
 });

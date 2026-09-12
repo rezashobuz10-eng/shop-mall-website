@@ -1422,51 +1422,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
+
       if (json.success) {
         addToast({
           type: 'info',
           title: 'Verification Code Dispatched 📧',
-          message: `A 6-digit code has been sent directly to ${data.email}.`
+          message: `A 6-digit verification code has been dispatched to ${data.email}.`
         });
         return { success: true, message: json.message || 'Verification code sent.', email: json.email || data.email };
       }
 
-      // If validation error from backend (like password too short or invalid email), propagate error
-      if (!json.isConnectionError && json.error && !json.error.includes('initializing') && !json.error.includes('Unable to connect')) {
-        return { success: false, message: json.error, error: json.error };
-      }
-
-      // Fallback: Store registration and OTP in Firestore
-      console.warn('[Auth SignUp] Using high-availability Firestore fallback');
-      const fallbackCode = Math.floor(100000 + Math.random() * 900000).toString();
-      await saveAuthCodeToFirestore(data.email, fallbackCode);
-      await saveCustomerToFirestore({
-        email: data.email,
-        name: data.name,
-        role: data.role || 'customer',
-        authMethod: 'email_code',
-        isVerified: false,
-        phone: data.phone
-      });
-
-      try {
-        localStorage.setItem(`shopnexa_pending_${data.email.toLowerCase()}`, JSON.stringify({
-          ...data,
-          code: fallbackCode
-        }));
-      } catch {}
-
-      addToast({
-        type: 'info',
-        title: 'Verification Code Dispatched 📧',
-        message: `A 6-digit verification code has been dispatched to ${data.email}.`
-      });
-      return { success: true, message: `A 6-digit verification code has been dispatched to ${data.email}.`, email: data.email };
+      return {
+        success: false,
+        message: json.error || 'Failed to dispatch verification email.',
+        error: json.error || 'Failed to dispatch verification email.'
+      };
     } catch (err: any) {
       console.error('[authSignUp error]', err);
-      const fallbackCode = Math.floor(100000 + Math.random() * 900000).toString();
-      await saveAuthCodeToFirestore(data.email, fallbackCode);
-      return { success: true, message: `Verification code dispatched to ${data.email}.`, email: data.email };
+      return {
+        success: false,
+        message: err.message || 'Unable to connect to authentication server.',
+        error: err.message || 'Connection error'
+      };
     }
   };
 
@@ -1483,108 +1460,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (json.success && json.token && json.user) {
-        localStorage.setItem('shopnexa_auth_token', json.token);
-        setSessionToken(json.token);
-        const u: User = {
-          id: json.user.id,
-          name: json.user.name,
-          email: json.user.email,
-          phone: json.user.phone || '01700000000',
-          avatar:
-            json.user.avatar ||
-            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-          role: json.user.role || 'customer',
-          joinedDate: 'Today',
-          addresses: [],
-          isVerified: true,
-          email_verified: true,
-          authMethod: json.user.auth_provider === 'google' ? 'google' : 'email_code',
-          authProvider: json.user.auth_provider === 'google' ? 'google' : 'email'
-        };
-        setCurrentUser(u);
-        setUsers((prev) =>
-          prev.some((x) => x.email.toLowerCase() === u.email.toLowerCase())
-            ? prev.map((x) => (x.email.toLowerCase() === u.email.toLowerCase() ? u : x))
-            : [u, ...prev]
-        );
-        saveCustomerToFirestore({
-          email: u.email,
-          name: u.name,
-          role: u.role,
-          authMethod: 'email_code',
-          isVerified: true
-        }).catch(console.warn);
 
-        addToast({
-          type: 'success',
-          title: 'Account Verified! ✅',
-          message: `Welcome, ${u.name}! Your account is now active.`
-        });
-        return { success: true, message: json.message, token: json.token, user: u };
-      }
+      if (json.success) {
+        if (json.token && json.user) {
+          localStorage.setItem('shopnexa_auth_token', json.token);
+          setSessionToken(json.token);
+          const u: User = {
+            id: json.user.id,
+            name: json.user.name,
+            email: json.user.email,
+            phone: json.user.phone || '01700000000',
+            avatar:
+              json.user.avatar ||
+              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            role: json.user.role || 'customer',
+            joinedDate: 'Today',
+            addresses: [],
+            isVerified: true,
+            email_verified: true,
+            authMethod: json.user.auth_provider === 'google' ? 'google' : 'email_code',
+            authProvider: json.user.auth_provider === 'google' ? 'google' : 'email'
+          };
+          setCurrentUser(u);
+          setUsers((prev) =>
+            prev.some((x) => x.email.toLowerCase() === u.email.toLowerCase())
+              ? prev.map((x) => (x.email.toLowerCase() === u.email.toLowerCase() ? u : x))
+              : [u, ...prev]
+          );
+          saveCustomerToFirestore({
+            email: u.email,
+            name: u.name,
+            role: u.role,
+            authMethod: 'email_code',
+            isVerified: true
+          }).catch(console.warn);
 
-      // If server returned specific code validation failure
-      if (!json.isConnectionError && json.error && !json.error.includes('initializing') && !json.error.includes('Unable to connect')) {
-        return { success: false, message: json.error, error: json.error };
-      }
-
-      // Firestore OTP verification fallback
-      const firestoreResult = await verifyAuthCodeInFirestore(data.email, data.code);
-      if (firestoreResult.valid) {
-        const token = 'shopnexa_client_' + Date.now();
-        localStorage.setItem('shopnexa_auth_token', token);
-        setSessionToken(token);
-
-        let pendingData: any = {};
-        try {
-          const raw = localStorage.getItem(`shopnexa_pending_${data.email.toLowerCase()}`);
-          if (raw) pendingData = JSON.parse(raw);
-        } catch {}
-
-        const u: User = {
-          id: 'usr_' + Date.now(),
-          name: data.name || pendingData.name || data.email.split('@')[0],
-          email: data.email,
-          phone: pendingData.phone || '01700000000',
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email)}`,
-          role: data.role || pendingData.role || 'customer',
-          joinedDate: 'Today',
-          addresses: [],
-          isVerified: true,
-          email_verified: true,
-          authMethod: 'email_code',
-          authProvider: 'email'
-        };
-        setCurrentUser(u);
-        setUsers((prev) =>
-          prev.some((x) => x.email.toLowerCase() === u.email.toLowerCase())
-            ? prev.map((x) => (x.email.toLowerCase() === u.email.toLowerCase() ? u : x))
-            : [u, ...prev]
-        );
-        saveCustomerToFirestore({
-          email: u.email,
-          name: u.name,
-          role: u.role,
-          authMethod: 'email_code',
-          isVerified: true
-        }).catch(console.warn);
-
-        addToast({
-          type: 'success',
-          title: 'Account Verified! ✅',
-          message: `Welcome, ${u.name}! Your account is now active.`
-        });
-        return { success: true, message: 'Account verified successfully', token, user: u };
+          addToast({
+            type: 'success',
+            title: 'Account Verified! ✅',
+            message: `Welcome, ${u.name}! Your account is now active.`
+          });
+          return { success: true, message: json.message, token: json.token, user: u };
+        }
+        return { success: true, message: json.message, resetToken: json.resetToken };
       }
 
       return {
         success: false,
-        message: firestoreResult.reason || json.error || 'Invalid verification code.',
-        error: firestoreResult.reason || json.error || 'Invalid verification code.'
+        message: json.error || 'Invalid verification code. Please check and try again.',
+        error: json.error || 'Invalid verification code.'
       };
     } catch (err: any) {
-      return { success: false, message: err.message || 'Network error', error: err.message };
+      return { success: false, message: err.message || 'Verification network error', error: err.message };
     }
   };
 
@@ -1598,35 +1525,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, purpose })
       });
+
       if (!json.success) {
-        if (!json.isConnectionError && json.cooldownRemaining) {
-          return {
-            success: false,
-            message: json.error || 'Failed to resend code',
-            error: json.error,
-            cooldownRemaining: json.cooldownRemaining
-          };
-        }
-        // Fallback: generate new code in Firestore
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        await saveAuthCodeToFirestore(email, code);
-        addToast({
-          type: 'info',
-          title: 'New Code Dispatched',
-          message: `A fresh 6-digit code has been sent to ${email}.`
-        });
-        return { success: true, message: 'A fresh verification code has been dispatched.' };
+        return {
+          success: false,
+          message: json.error || 'Failed to resend code.',
+          error: json.error,
+          cooldownRemaining: json.cooldownRemaining
+        };
       }
+
       addToast({
         type: 'info',
-        title: 'New Code Dispatched',
-        message: `A fresh 6-digit code has been sent to ${email}.`
+        title: 'New Code Dispatched 📧',
+        message: json.message || `A fresh 6-digit code has been dispatched to ${email}.`
       });
       return { success: true, message: json.message };
     } catch (err: any) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      await saveAuthCodeToFirestore(email, code);
-      return { success: true, message: 'A fresh verification code has been dispatched.' };
+      return { success: false, message: err.message || 'Failed to connect to mail service.', error: err.message };
     }
   };
 

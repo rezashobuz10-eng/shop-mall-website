@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="w-7 h-7" />
             </div>
             <h2 className="text-xl font-black text-slate-900 mb-2">
-              {this.props.fallbackTitle || 'Something went wrong'}
+              {this.props.fallbackTitle || 'Something went wrong. Please refresh the page.'}
             </h2>
             <p className="text-xs text-slate-500 mb-6 leading-relaxed">
               We encountered an issue loading this section. Please try refreshing or return to the shop homepage.

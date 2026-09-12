@@ -14,7 +14,9 @@ export const LoginPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const { authLogin, authGoogleLogin } = useStore();
+  const store = useStore();
+  const authLogin = store?.authLogin;
+  const authGoogleLogin = store?.authGoogleLogin;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
@@ -41,17 +43,22 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
+    if (typeof authLogin !== 'function') {
+      setErrorMessage('Authentication service is initializing. Please try again in a moment.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await authLogin(cleanEmail, password);
-      if (result.requiresVerification && result.email) {
+      if (result?.requiresVerification && result.email) {
         // Redirect to email verification page
         navigate(`/verify-email?email=${encodeURIComponent(result.email)}&purpose=signup&reason=unverified`);
         return;
       }
 
-      if (!result.success) {
-        setErrorMessage(result.error || 'Invalid email or password. Please try again.');
+      if (!result || !result.success) {
+        setErrorMessage(result?.error || 'Invalid email or password. Please try again.');
         return;
       }
 
@@ -68,13 +75,18 @@ export const LoginPage: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
+    if (typeof authGoogleLogin !== 'function') {
+      setErrorMessage('Google authentication is initializing. Please try again in a moment.');
+      return;
+    }
+
     setIsGoogleLoading(true);
     try {
       const result = await authGoogleLogin();
-      if (result.success) {
+      if (result?.success) {
         navigate(redirectUrl);
       } else {
-        setErrorMessage(result.error || 'Google sign-in could not be completed.');
+        setErrorMessage(result?.error || 'Google sign-in could not be completed.');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to sign in with Google.');
@@ -88,7 +100,7 @@ export const LoginPage: React.FC = () => {
       <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-xl p-8 sm:p-10 transition-all">
         
         {/* Brand Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="inline-block mb-3">
             <Logo size="md" />
           </div>
@@ -96,6 +108,24 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
             Welcome back! Enter your verified email address to access your orders, saved items, and personalized dashboard.
           </p>
+        </div>
+
+        {/* Navigation Tabs between Sign In and Sign Up */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl mb-6 text-xs font-bold">
+          <button
+            type="button"
+            id="auth-tab-signin"
+            className="py-2.5 rounded-xl bg-white text-slate-900 shadow-xs text-center font-bold cursor-default"
+          >
+            Sign In
+          </button>
+          <Link
+            to="/signup"
+            id="auth-tab-signup"
+            className="py-2.5 rounded-xl text-slate-500 hover:text-slate-900 text-center font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <span>Sign Up</span>
+          </Link>
         </div>
 
         {/* Global Notice (e.g. from password reset) */}
@@ -251,8 +281,13 @@ export const LoginPage: React.FC = () => {
         {/* Create Account Link */}
         <div className="mt-6 text-center text-xs text-slate-500">
           Don't have an account yet?{' '}
-          <Link to="/signup" className="font-bold text-orange-600 hover:text-orange-700 hover:underline">
-            Create an Account
+          <Link
+            to="/signup"
+            id="login-to-signup-link"
+            className="font-bold text-orange-600 hover:text-orange-700 hover:underline inline-flex items-center gap-1"
+          >
+            <span>Sign Up / Create Account</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 

@@ -475,13 +475,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
                 </button>
               ) : (
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Login</span>
-                </Link>
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    to="/login"
+                    id="header-login-btn"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Login</span>
+                  </Link>
+                  <Link
+                    to="/signup"
+                    id="header-signup-btn"
+                    className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+                  >
+                    <span>Sign Up</span>
+                  </Link>
+                </div>
               )}
 
               {/* User Dropdown Menu */}

@@ -4,8 +4,9 @@ import { User, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, AlertCircle, Ch
 import { Logo } from '../components/common/Logo';
 import { useStore } from '../context/StoreContext';
 import { GoogleLogo } from '../components/auth/SocialLoginModal';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 
-export const SignUpPage: React.FC = () => {
+const SignUpContent: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -18,15 +19,17 @@ export const SignUpPage: React.FC = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { authSignUp, authGoogleLogin } = useStore();
+  const store = useStore();
+  const authSignUp = store?.authSignUp;
+  const authGoogleLogin = store?.authGoogleLogin;
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    const cleanName = name.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
 
     if (!cleanName || cleanName.length < 2) {
       setErrorMessage('Please enter your full name (minimum 2 characters).');
@@ -49,18 +52,23 @@ export const SignUpPage: React.FC = () => {
       return;
     }
 
+    if (typeof authSignUp !== 'function') {
+      setErrorMessage('Authentication service is initializing. Please try again in a moment.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await authSignUp({
         name: cleanName,
         email: cleanEmail,
         password,
-        phone: phone.trim(),
+        phone: (phone || '').trim(),
         role
       });
 
-      if (!result.success) {
-        setErrorMessage(result.error || result.message || 'Failed to create account.');
+      if (!result || !result.success) {
+        setErrorMessage(result?.error || result?.message || 'Unable to create your account right now. Please try again.');
         return;
       }
 
@@ -71,7 +79,7 @@ export const SignUpPage: React.FC = () => {
         )}&role=${role}&purpose=signup`
       );
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred during account creation.');
+      setErrorMessage(err.message || 'An error occurred during account creation. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -79,13 +87,18 @@ export const SignUpPage: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
+    if (typeof authGoogleLogin !== 'function') {
+      setErrorMessage('Google authentication is initializing. Please try again in a moment.');
+      return;
+    }
+
     setIsGoogleLoading(true);
     try {
       const result = await authGoogleLogin();
-      if (result.success) {
+      if (result?.success) {
         navigate('/dashboard');
       } else {
-        setErrorMessage(result.error || 'Google sign-up could not be completed.');
+        setErrorMessage(result?.error || 'Google sign-up could not be completed.');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to sign up with Google.');
@@ -107,6 +120,24 @@ export const SignUpPage: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
             Join thousands of shoppers and sellers across Bangladesh. A verification code will be sent to your Gmail/email.
           </p>
+        </div>
+
+        {/* Navigation Tabs between Sign In and Sign Up */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl mb-6 text-xs font-bold">
+          <Link
+            to="/login"
+            id="auth-tab-signin"
+            className="py-2.5 rounded-xl text-slate-500 hover:text-slate-900 text-center font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <span>Sign In</span>
+          </Link>
+          <button
+            type="button"
+            id="auth-tab-signup"
+            className="py-2.5 rounded-xl bg-white text-slate-900 shadow-xs text-center font-bold cursor-default"
+          >
+            Sign Up
+          </button>
         </div>
 
         {/* Error Alert */}
@@ -306,6 +337,7 @@ export const SignUpPage: React.FC = () => {
           <button
             type="submit"
             id="create-account-button"
+            data-testid="signup-button"
             disabled={isLoading || isGoogleLoading}
             className="w-full mt-2 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-2xl shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -316,7 +348,7 @@ export const SignUpPage: React.FC = () => {
               </>
             ) : (
               <>
-                <span>Create Account</span>
+                <span>Create Account / Sign Up</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -332,12 +364,20 @@ export const SignUpPage: React.FC = () => {
         {/* Already have account */}
         <div className="mt-5 text-center text-xs text-slate-500">
           Already have an account?{' '}
-          <Link to="/login" className="font-bold text-orange-600 hover:text-orange-700 hover:underline">
+          <Link to="/login" id="signup-to-login-link" className="font-bold text-orange-600 hover:text-orange-700 hover:underline">
             Sign In Here
           </Link>
         </div>
 
       </div>
     </div>
+  );
+};
+
+export const SignUpPage: React.FC = () => {
+  return (
+    <ErrorBoundary fallbackTitle="Sign Up is Temporarily Unavailable">
+      <SignUpContent />
+    </ErrorBoundary>
   );
 };

@@ -42,13 +42,18 @@ import { WishlistPage } from './pages/WishlistPage';
 import { MallPage } from './pages/MallPage';
 import { FlashSalePage } from './pages/FlashSalePage';
 import { HelpCenterPage } from './pages/HelpCenterPage';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Scroll to top helper on route change
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      // Safe fallback for restricted iframe or older browser environments
+    }
   }, [pathname]);
 
   return null;
@@ -95,46 +100,58 @@ const AppContent: React.FC = () => {
 
       {/* Page Routing */}
       <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/category/:slug" element={<ProductsPage />} />
-          <Route path="/search" element={<ProductsPage />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          {/* Order Thank You, success & Tracking routes */}
-          <Route path="/thank-you/:id" element={<ThankYouPage />} />
-          <Route path="/thank-you" element={<ThankYouPage />} />
-          <Route path="/order-success/:id" element={<ThankYouPage />} />
-          <Route path="/order-success" element={<ThankYouPage />} />
-          <Route path="/order/:id" element={<ThankYouPage />} />
-          <Route path="/order" element={<OrdersPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/orders/:id" element={<OrdersPage />} />
-          <Route path="/track-order" element={<OrdersPage />} />
-          <Route path="/track-order/:id" element={<OrdersPage />} />
-          <Route path="/track/:id" element={<OrdersPage />} />
-          <Route path="/seller/:id" element={<SellerStorePage />} />
-          <Route path="/store/:id" element={<SellerStorePage />} />
-          <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
-          <Route path="/admin" element={<AdminDashboardPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/register" element={<SignUpPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/account" element={<DashboardPage />} />
-          <Route path="/legacy-auth" element={<AuthPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
-          <Route path="/mall" element={<MallPage />} />
-          <Route path="/flash-sale" element={<FlashSalePage />} />
-          <Route path="/help" element={<HelpCenterPage />} />
-          {/* Fallback route */}
-          <Route path="*" element={<HomePage />} />
-        </Routes>
+        <ErrorBoundary fallbackTitle="Something went wrong. Please refresh the page.">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/category/:slug" element={<ProductsPage />} />
+            <Route path="/search" element={<ProductsPage />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            {/* Order Thank You, success & Tracking routes */}
+            <Route path="/thank-you/:id" element={<ThankYouPage />} />
+            <Route path="/thank-you" element={<ThankYouPage />} />
+            <Route path="/order-success/:id" element={<ThankYouPage />} />
+            <Route path="/order-success" element={<ThankYouPage />} />
+            <Route path="/order/:id" element={<ThankYouPage />} />
+            <Route path="/order" element={<OrdersPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders/:id" element={<OrdersPage />} />
+            <Route path="/track-order" element={<OrdersPage />} />
+            <Route path="/track-order/:id" element={<OrdersPage />} />
+            <Route path="/track/:id" element={<OrdersPage />} />
+            <Route path="/seller/:id" element={<SellerStorePage />} />
+            <Route path="/store/:id" element={<SellerStorePage />} />
+            <Route path="/seller-dashboard" element={<SellerDashboardPage />} />
+            <Route path="/admin" element={<AdminDashboardPage />} />
+            
+            {/* Real Authentication Routes & Aliases */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signin" element={<LoginPage />} />
+            <Route path="/auth/login" element={<LoginPage />} />
+            <Route path="/auth" element={<LoginPage />} />
+
+            <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/sign-up" element={<SignUpPage />} />
+            <Route path="/register" element={<SignUpPage />} />
+            <Route path="/auth/signup" element={<SignUpPage />} />
+            <Route path="/auth/register" element={<SignUpPage />} />
+
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/account" element={<DashboardPage />} />
+            <Route path="/legacy-auth" element={<AuthPage />} />
+            <Route path="/wishlist" element={<WishlistPage />} />
+            <Route path="/mall" element={<MallPage />} />
+            <Route path="/flash-sale" element={<FlashSalePage />} />
+            <Route path="/help" element={<HelpCenterPage />} />
+            {/* Fallback route */}
+            <Route path="*" element={<HomePage />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}

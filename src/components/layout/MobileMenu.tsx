@@ -104,11 +104,11 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
                   Sign In
                 </Link>
                 <Link
-                  to="/register"
+                  to="/signup"
                   onClick={onClose}
                   className="flex-1 py-2 text-center text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
                 >
-                  Register
+                  Sign Up
                 </Link>
               </div>
             </div>

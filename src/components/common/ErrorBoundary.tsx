@@ -28,6 +28,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo);
+    try {
+      fetch('/api/client-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fallbackTitle: this.props.fallbackTitle,
+          errorMessage: error?.message || String(error),
+          errorStack: error?.stack,
+          componentStack: errorInfo?.componentStack,
+          url: typeof window !== 'undefined' ? window.location.href : ''
+        })
+      }).catch(() => {});
+    } catch (_) {}
   }
 
   public render() {
@@ -41,9 +54,15 @@ export class ErrorBoundary extends Component<Props, State> {
             <h2 className="text-xl font-black text-slate-900 mb-2">
               {this.props.fallbackTitle || 'Something went wrong. Please refresh the page.'}
             </h2>
-            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
               We encountered an issue loading this section. Please try refreshing or return to the shop homepage.
             </p>
+            {this.state.error && (
+              <div className="mb-6 p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-left text-[11px] font-mono text-rose-800 break-words">
+                <span className="font-bold">Error: </span>
+                {this.state.error.message || String(this.state.error)}
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
               <button
                 type="button"

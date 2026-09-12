@@ -471,6 +471,12 @@ async function dispatchOTPEmail(
   }
 }
 
+// Diagnostic client error reporter
+app.post('/api/client-error', express.json(), (req, res) => {
+  console.error('>>> [CLIENT EXCEPTION CAPTURED]:', JSON.stringify(req.body, null, 2));
+  res.json({ received: true });
+});
+
 // --------------------------------------------------------------------------
 // AUTHENTICATION API ENDPOINTS
 // --------------------------------------------------------------------------

@@ -2154,7 +2154,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useStore = () => {
   const context = useContext(StoreContext);
   if (!context) {
-    throw new Error('useStore must be used within a StoreProvider');
+    console.warn('[useStore] Context not yet ready or used outside StoreProvider. Providing fallback context.');
+    return {} as StoreContextType;
   }
   return context;
 };

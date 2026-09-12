@@ -11,8 +11,8 @@
       "password_hash": "3d8598dd3b270307437778a37ce832037606c8bac1c4b036ed5b24e475182cb23db2d79f8d6a1006ec0ca3b27e94e9a5c6108c2e86aa7358c50d2e8b88db001a",
       "avatar": "https://lh3.googleusercontent.com/a/ACg8ocLXjiiZF24uHWgfbcy8WXTip11ugtjInNIrCYzDNpAJ7yQZg44=s96-c",
       "created_at": "2026-09-01T00:00:00.000Z",
-      "updated_at": "2026-09-12T12:05:51.074Z",
-      "last_login": "2026-09-12T12:05:51.075Z",
+      "updated_at": "2026-09-12T12:23:28.573Z",
+      "last_login": "2026-09-12T12:23:28.573Z",
       "auth_provider": "google"
     },
     {
@@ -36,13 +36,13 @@
       "phone": "",
       "role": "customer",
       "email_verified": true,
-      "salt": "be82f031b501c2a4aecb85553bd6aa0e",
-      "password_hash": "c574c077722eebdca18dcacb75dc922210cfe2c43f42f88869e9a7c5532a92e98a4f88ac637f1ef562d98024e10273095b360220d611850158626db4c894ce2a",
+      "salt": "6f627b9b2b18e2aa66b3752db3fbddf5",
+      "password_hash": "cde5ca8540d221ce25d42262c49932fc684edec7ffdf17fe8418dce350e33a0cf2bf7b7f1956758b3ad675dea9580b1c72408599ecec4c3bd04d6566582818da",
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
       "created_at": "2026-09-11T13:33:28.384Z",
-      "updated_at": "2026-09-11T13:53:55.075Z",
+      "updated_at": "2026-09-12T12:17:44.657Z",
       "auth_provider": "local",
-      "last_login": "2026-09-11T13:53:55.075Z"
+      "last_login": "2026-09-12T12:17:44.658Z"
     },
     {
       "id": "usr_1789136149658_93ce1b86",
@@ -87,6 +87,35 @@
       "updated_at": "2026-09-12T12:15:21.217Z",
       "auth_provider": "local",
       "last_login": "2026-09-12T12:15:26.544Z"
+    },
+    {
+      "id": "usr_1789215860486_4348006d",
+      "name": "Test",
+      "email": "test@example.com",
+      "phone": "",
+      "role": "customer",
+      "email_verified": false,
+      "salt": "25c7eb2099f21e665cfc48f25f1bb7d0",
+      "password_hash": "91f29622a85d60ecd2edb196b48077cb3eade1aea8706a297705562ae748a145a4ed81e1274c8af21c292b72641ed4f4bf2763e2951c0708e4d83b3b35ae6a5e",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-12T12:24:20.486Z",
+      "updated_at": "2026-09-12T12:24:20.486Z",
+      "auth_provider": "local"
+    },
+    {
+      "id": "usr_1789216022982_a170cd9b",
+      "name": "Tanvir Ahmed",
+      "email": "tanvir.test@gmail.com",
+      "phone": "01711223344",
+      "role": "customer",
+      "email_verified": true,
+      "salt": "a2fe8560b48612e21eccf7188d3dc03c",
+      "password_hash": "680262ece09ff6251fa9c8b083a552d78e942af4d5b3e4748204f12c811fc88ce5cacf9aacf23b6f9dd5c7734bd74fd40898ae2010eea7c645b96f82411b4437",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-12T12:27:02.982Z",
+      "updated_at": "2026-09-12T12:27:07.801Z",
+      "auth_provider": "google",
+      "last_login": "2026-09-12T12:27:07.801Z"
     }
   ],
   "otps": {
@@ -102,14 +131,14 @@
     },
     "jothikhatun58@gmail.com_signup": {
       "email": "jothikhatun58@gmail.com",
-      "otp_hash": "cc9966c8f49f065d011f96985d35c783f983670a9402187b1b6fc2e76073b895",
-      "plain_code": "660143",
+      "otp_hash": "9d1663d84830a05d3008fd1ebadf370c4dc7b1d6d7e82899908a7b8e35d02a44",
       "purpose": "signup",
-      "expires_at": 1789135908612,
+      "expires_at": 1789216027888,
       "attempts": 0,
-      "last_sent_at": 1789135308612,
-      "created_at": "2026-09-11T14:01:48.612Z",
-      "used": false
+      "last_sent_at": 1789215427888,
+      "created_at": "2026-09-12T12:17:07.888Z",
+      "used": true,
+      "used_at": "2026-09-12T12:17:44.657Z"
     },
     "testunique12345@gmail.com_signup": {
       "email": "testunique12345@gmail.com",
@@ -154,6 +183,28 @@
       "created_at": "2026-09-12T12:15:00.384Z",
       "used": true,
       "used_at": "2026-09-12T12:15:21.216Z"
+    },
+    "test@example.com_signup": {
+      "email": "test@example.com",
+      "otp_hash": "404693a29ef7dca555e2a5824da35d3147ed3244a2e8f477e5f1b6a1f0ac02de",
+      "plain_code": "664950",
+      "purpose": "signup",
+      "expires_at": 1789216460487,
+      "attempts": 0,
+      "last_sent_at": 1789215860487,
+      "created_at": "2026-09-12T12:24:20.487Z",
+      "used": false
+    },
+    "tanvir.test@gmail.com_signup": {
+      "email": "tanvir.test@gmail.com",
+      "otp_hash": "bc874714146923d8bba5d6fc96eda28a1d93eddb95d0cf058c3e758da19371c8",
+      "plain_code": "521026",
+      "purpose": "signup",
+      "expires_at": 1789216622983,
+      "attempts": 0,
+      "last_sent_at": 1789216022983,
+      "created_at": "2026-09-12T12:27:02.983Z",
+      "used": false
     }
   },
   "reset_tokens": {},
@@ -205,6 +256,30 @@
       "role": "customer",
       "created_at": "2026-09-12T12:15:21.217Z",
       "expires_at": 1789820121217
+    },
+    "cb698793391c20b0e4a15c704cffd5c58b7c9562d7b95e8f2f86aae817f18574": {
+      "token": "cb698793391c20b0e4a15c704cffd5c58b7c9562d7b95e8f2f86aae817f18574",
+      "user_id": "usr_1789133608384_dc77755c",
+      "email": "jothikhatun58@gmail.com",
+      "role": "customer",
+      "created_at": "2026-09-12T12:17:44.658Z",
+      "expires_at": 1789820264658
+    },
+    "33bd6a5b336535fdee9cfb914aea469f77c01fcc1fcc1e94e309cfdea90d5775": {
+      "token": "33bd6a5b336535fdee9cfb914aea469f77c01fcc1fcc1e94e309cfdea90d5775",
+      "user_id": "usr-admin-reza",
+      "email": "rezashobuz10@gmail.com",
+      "role": "admin",
+      "created_at": "2026-09-12T12:23:28.573Z",
+      "expires_at": 1789820608573
+    },
+    "4f26065ea56199c0a3b0d51eade505da3dca3b9cf9b6ef37390b5d29178f3216": {
+      "token": "4f26065ea56199c0a3b0d51eade505da3dca3b9cf9b6ef37390b5d29178f3216",
+      "user_id": "usr_1789216022982_a170cd9b",
+      "email": "tanvir.test@gmail.com",
+      "role": "customer",
+      "created_at": "2026-09-12T12:27:07.801Z",
+      "expires_at": 1789820827801
     }
   }
 }

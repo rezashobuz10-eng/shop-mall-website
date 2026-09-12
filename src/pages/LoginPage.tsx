@@ -110,7 +110,17 @@ export const LoginPage: React.FC = () => {
         {errorMessage && (
           <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in duration-200">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <p className="font-semibold leading-relaxed">{errorMessage}</p>
+            <div className="flex-1">
+              <p className="font-semibold leading-relaxed">{errorMessage}</p>
+              {errorMessage.toLowerCase().includes('verify') && email && (
+                <Link
+                  to={`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}&purpose=signup`}
+                  className="mt-1.5 inline-flex items-center gap-1 font-bold text-orange-700 hover:text-orange-800 underline text-[11px]"
+                >
+                  Verify your email address now &rarr;
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
@@ -161,7 +171,10 @@ export const LoginPage: React.FC = () => {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="name@example.com"
                 disabled={isLoading}
                 className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all disabled:opacity-60"
@@ -188,7 +201,10 @@ export const LoginPage: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
                 placeholder="••••••••"
                 disabled={isLoading}
                 className="w-full pl-10 pr-10 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all disabled:opacity-60"

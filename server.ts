@@ -33,6 +33,17 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Enable CORS for all incoming requests (crucial for iframe preview, deep links & cross-origin API calls)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Initialize persistent auth database
 initAuthDb();
 
@@ -767,6 +778,7 @@ app.get('/api/auth/me', (req, res) => {
     }
 
     return res.json({
+      success: true,
       authenticated: true,
       user: {
         id: user.id,
@@ -898,6 +910,15 @@ app.post('/api/send-auth-code', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Catch-all handler for any unmatched /api/* route to guarantee a JSON response
+app.all('/api/*', (req, res) => {
+  return res.status(404).json({
+    success: false,
+    error: 'The requested API endpoint was not found.',
+    path: req.originalUrl || req.path
+  });
 });
 
 // Vite middleware setup (after API routes)

@@ -1553,7 +1553,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             error: json.error || 'Please verify your email address to log in.'
           };
         }
-        return { success: false, error: json.error || 'Invalid credentials' };
+        return { success: false, error: json.error || 'Email or password is incorrect.' };
       }
 
       if (json.token && json.user) {

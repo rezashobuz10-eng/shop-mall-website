@@ -11,8 +11,8 @@
       "password_hash": "3d8598dd3b270307437778a37ce832037606c8bac1c4b036ed5b24e475182cb23db2d79f8d6a1006ec0ca3b27e94e9a5c6108c2e86aa7358c50d2e8b88db001a",
       "avatar": "https://lh3.googleusercontent.com/a/ACg8ocLXjiiZF24uHWgfbcy8WXTip11ugtjInNIrCYzDNpAJ7yQZg44=s96-c",
       "created_at": "2026-09-01T00:00:00.000Z",
-      "updated_at": "2026-09-11T14:38:33.021Z",
-      "last_login": "2026-09-11T14:38:33.021Z",
+      "updated_at": "2026-09-12T12:05:51.074Z",
+      "last_login": "2026-09-12T12:05:51.075Z",
       "auth_provider": "google"
     },
     {
@@ -72,6 +72,21 @@
       "updated_at": "2026-09-11T14:27:02.460Z",
       "auth_provider": "local",
       "last_login": "2026-09-11T14:25:45.183Z"
+    },
+    {
+      "id": "usr_1789215300383_f2eb9d58",
+      "name": "Customer Test",
+      "email": "customer.flow.test@gmail.com",
+      "phone": "01712345678",
+      "role": "customer",
+      "email_verified": true,
+      "salt": "b882335d29ae6eee6f32c74b11e47e2d",
+      "password_hash": "347a64660dac6cf9238f842584d7c31061fa2d0bd6af472faa61a3dee50fc4e5e3a029344b819921857502a8317326d2eeded16b62a22ec8345778797c80c0a3",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
+      "created_at": "2026-09-12T12:15:00.383Z",
+      "updated_at": "2026-09-12T12:15:21.217Z",
+      "auth_provider": "local",
+      "last_login": "2026-09-12T12:15:26.544Z"
     }
   ],
   "otps": {
@@ -128,6 +143,17 @@
       "last_sent_at": 1789136822461,
       "created_at": "2026-09-11T14:27:02.461Z",
       "used": false
+    },
+    "customer.flow.test@gmail.com_signup": {
+      "email": "customer.flow.test@gmail.com",
+      "otp_hash": "3bb2ce2fd303adbb635603a5ca223d0436d15dad73f13cbaa9a4b2adea9b4036",
+      "purpose": "signup",
+      "expires_at": 1789215900384,
+      "attempts": 0,
+      "last_sent_at": 1789215300384,
+      "created_at": "2026-09-12T12:15:00.384Z",
+      "used": true,
+      "used_at": "2026-09-12T12:15:21.216Z"
     }
   },
   "reset_tokens": {},
@@ -171,6 +197,14 @@
       "role": "admin",
       "created_at": "2026-09-11T14:38:33.021Z",
       "expires_at": 1789742313021
+    },
+    "0dd4e68f79fbaec1581cac0c7b23d129b5b42c944de66360417453dbe19af1af": {
+      "token": "0dd4e68f79fbaec1581cac0c7b23d129b5b42c944de66360417453dbe19af1af",
+      "user_id": "usr_1789215300383_f2eb9d58",
+      "email": "customer.flow.test@gmail.com",
+      "role": "customer",
+      "created_at": "2026-09-12T12:15:21.217Z",
+      "expires_at": 1789820121217
     }
   }
 }

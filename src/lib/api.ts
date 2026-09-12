@@ -1,7 +1,7 @@
 /**
  * Safe API request utility for ShopNexa
- * Prevents "Unexpected token ..., is not valid JSON" errors by checking Content-Type
- * and handling non-JSON proxy/gateway responses (e.g., 502/503/cold-starts) gracefully.
+ * Handles API requests with automatic retry for transient network/proxy issues,
+ * strict JSON parsing, and clear, user-friendly error messages.
  */
 
 export interface ApiResponse<T = any> {
@@ -15,7 +15,8 @@ export interface ApiResponse<T = any> {
 
 export async function safeFetchJson<T = any>(
   url: string,
-  options?: RequestInit
+  options?: RequestInit,
+  retries: number = 1
 ): Promise<ApiResponse<T>> {
   try {
     const res = await fetch(url, options);
@@ -26,30 +27,51 @@ export async function safeFetchJson<T = any>(
       try {
         const json = await res.json();
         const isSuccess = res.ok && json.success !== false;
+        
+        let errorMsg = json.error || json.message;
+        if (!isSuccess && !errorMsg) {
+          if (res.status === 401) {
+            errorMsg = 'Email or password is incorrect.';
+          } else if (res.status === 403) {
+            errorMsg = 'Please verify your email before logging in.';
+          } else if (res.status >= 500) {
+            errorMsg = 'Unable to sign in right now. Please try again.';
+          } else {
+            errorMsg = 'Unable to complete request. Please try again.';
+          }
+        }
+
         return {
           success: isSuccess,
           status: res.status,
-          error: !isSuccess ? (json.error || json.message || `Request failed (${res.status})`) : undefined,
+          error: !isSuccess ? errorMsg : undefined,
           message: json.message,
           ...json
         };
       } catch {
-        return {
-          success: false,
-          status: res.status,
-          error: 'The server returned an unparseable response. Please retry in a moment.'
-        };
+        // Fall through to retry or friendly error if JSON parsing fails
       }
     }
 
-    // Server returned HTML or plain text (e.g. Cloud Run 502/503 cold-start or proxy message)
-    let friendlyMessage = 'The server is currently connecting or initializing. Please retry in a moment.';
-    if (res.status === 404) {
-      friendlyMessage = 'The requested endpoint was not found. Please refresh the page.';
+    // If response was not valid JSON (e.g. gateway 502/503 or transient 404 during container wake-up)
+    // Retry once before returning an error to absorb cold-starts
+    if (retries > 0 && (res.status === 404 || res.status >= 500)) {
+      await new Promise((r) => setTimeout(r, 350));
+      return safeFetchJson<T>(url, options, retries - 1);
+    }
+
+    // Friendly, domain-specific error messages per user instructions
+    let friendlyMessage = 'Unable to sign in right now. Please try again.';
+    if (res.status === 401) {
+      friendlyMessage = 'Email or password is incorrect.';
+    } else if (res.status === 403) {
+      friendlyMessage = 'Please verify your email before logging in.';
     } else if (res.status === 429) {
       friendlyMessage = 'Too many requests. Please wait a few seconds before trying again.';
+    } else if (res.status === 404) {
+      friendlyMessage = 'Unable to connect to the authentication service right now. Please try again.';
     } else if (res.status >= 500) {
-      friendlyMessage = 'The server is temporarily busy or reconnecting. Please click again to retry.';
+      friendlyMessage = 'Unable to sign in right now. Please try again.';
     }
 
     return {
@@ -58,10 +80,16 @@ export async function safeFetchJson<T = any>(
       error: friendlyMessage
     };
   } catch (err: any) {
+    // Retry once on network drops
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, 350));
+      return safeFetchJson<T>(url, options, retries - 1);
+    }
+
     return {
       success: false,
       status: 0,
-      error: 'Network connection issue. Please check your internet connection or retry.'
+      error: 'Connection problem. Please check your internet connection and try again.'
     };
   }
 }
